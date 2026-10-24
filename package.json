@@ -1,0 +1,41 @@
+{
+  "name": "premise-decay-engine",
+  "version": "1.0.0",
+  "private": true,
+  "bin": {
+    "premise": "./bin/premise-cli.ts"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "bun test",
+    "premise:check": "bun ./bin/premise-cli.ts check",
+    "premise:check:strict": "bun ./bin/premise-cli.ts check --strict",
+    "premise:scan": "bun ./bin/premise-cli.ts scan",
+    "premise:scan:import": "bun ./bin/premise-cli.ts scan --import",
+    "premise:json": "bun ./bin/premise-cli.ts check --json",
+    "premise:reset": "bun ./bin/premise-cli.ts check --reset",
+    "premise:backtest": "bun ./bin/premise-cli.ts backtest",
+    "premise:backtest:json": "bun ./bin/premise-cli.ts backtest --json"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.469.0",
+    "next": "14.2.23",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^2.6.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.2"
+  }
+}

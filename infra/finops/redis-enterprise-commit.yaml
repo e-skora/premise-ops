@@ -1,0 +1,19 @@
+# @premise-locus: art-vendor-redis
+# Upstream Dependency: art-adr-014 (ADR-014: Custom Semantic Caching Microservice)
+# Bound to: redis_cluster_memory_utilization_pct >= 60 %
+# Blast Radius: $7,200/yr Redis Enterprise 3-node committed use contract (redis-semantic-prod-01)
+
+vendor_commitment:
+  contract_id: "VENDOR-04-REDIS-ENTERPRISE"
+  upstream_decision_dependency: "art-adr-014"
+  cluster_id: "redis-semantic-prod-01"
+  tier: "Redis Enterprise Cloud - 3x r7g.xlarge HNSW Vector Nodes"
+  monthly_commit_usd: 600
+  annual_commit_usd: 7200
+  auto_renew: true
+  renewal_window_days: 30
+
+capacity_guardrails:
+  min_memory_utilization_pct: 60.0
+  vector_index_algorithm: "HNSW_COSINE_FLOAT32"
+  fallback_on_upstream_invalidation: "TERMINATE_COMMIT_AND_DELETE_CLUSTER"

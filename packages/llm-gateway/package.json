@@ -1,0 +1,11 @@
+{
+  "name": "@company/llm-gateway",
+  "version": "1.4.0",
+  "private": true,
+  "main": "src/semantic-cache.ts",
+  "dependencies": {
+    "ioredis": "^5.4.1",
+    "@anthropic-ai/sdk": "^0.30.0",
+    "rate-limiter-flexible": "^5.0.3"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "@company/ingest-worker",
+  "version": "2.1.0",
+  "private": true,
+  "main": "queue.ts",
+  "dependencies": {
+    "bullmq": "^5.14.0",
+    "tesseract.js": "^5.1.0"
+  }
+}

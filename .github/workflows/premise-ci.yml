@@ -1,0 +1,39 @@
+name: Premise Architectural & Strategic Decision CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  schedule:
+    # Continuously evaluate load-bearing architectural & FinOps premises every hour
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+jobs:
+  premise-assertions:
+    name: Evaluate Load-Bearing Premises & Cascade Graph
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun Runtime
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Dependencies
+        run: bun install --frozen-lockfile || bun install
+
+      - name: Run Unit & Integration Tests
+        run: bun test
+
+      - name: Scan Codebase for Inline @premise Annotations
+        run: bun ./bin/premise-cli.ts scan
+
+      - name: Run Historical Telemetry Time-Machine Backtest
+        run: bun ./bin/premise-cli.ts backtest --scenario historical
+
+      - name: Run Premise CI/CD Decision Assertions
+        run: bun ./bin/premise-cli.ts check
+

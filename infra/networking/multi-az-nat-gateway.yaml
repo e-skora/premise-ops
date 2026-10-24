@@ -1,0 +1,20 @@
+# @premise title: INFRA-12: Single-AZ NAT Gateway Routing Bypass
+# @premise type: VENDOR_CONTRACT
+# @premise claim: Cross-AZ NAT data processing stays under 2,000 GB/month before AWS Transit Gateway commit breaks even
+# @premise metric: nat_gateway_monthly_gb <= 2000 GB (current: 1840, margin: 0.12)
+# @premise probe: PROMQL | avg_over_time(nat_gateway_monthly_gb{az="us-east-1a"}[1h])
+# @premise blastRadius: Decommission single-AZ NAT routing table workaround and provision multi-AZ AWS PrivateLink + S3 Gateway Endpoints
+
+network_routing_policy:
+  policy_id: "INFRA-12-SINGLE-AZ-NAT-BYPASS"
+  status: "ACTIVE_WORKAROUND"
+  primary_availability_zone: "us-east-1a"
+  monthly_data_budget_gb: 2000
+  per_gb_processing_fee_usd: 0.045
+  enabled: true
+
+route_table_overrides:
+  ap_east_worker_subnets:
+    route_via_single_az_nat: true
+    failover_to_secondary_az: false
+     sunset_trigger: "nat_gateway_monthly_gb > 2000"

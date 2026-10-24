@@ -1,0 +1,27 @@
+# @premise-locus: art-gtm-q3
+# Bound to: blended_search_cac_usd < 65.00 USD AND d30_payback_conversion_pct >= 14.5 %
+# Blast Radius: $45,000/mo search ad spend + 3 Clearbit attribution enrichment pipelines
+
+channel_allocation:
+  program_id: "gtm-2026-q3-paid-search"
+  status: "ACTIVE_FUNDED"
+  monthly_budget_usd: 45000
+  bid_strategy: "high_intent_non_brand_capture"
+  target_keywords:
+    - "ci/cd architectural observability"
+    - "microservice drift detection"
+    - "automated tech debt teardown"
+
+enrichment_workers:
+  clearbit_reveal_pipeline:
+    enabled: true
+    workers: 3
+    monthly_cost_usd: 3800
+  clay_sdr_outbound_sequence:
+    enabled: true
+    auto_enroll_on_signup: true
+
+kill_switch_policy:
+  max_blended_cac_usd: 65.00
+  min_d30_conversion_pct: 14.5
+  on_breach_action: "PAUSE_AD_GROUPS_AND_SUNSET_CLEARBIT"

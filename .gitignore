@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+/.pnp
+.pnp.js
+
+# Next.js Build
+.next/
+out/
+
+# Production
+build/
+dist/
+
+# SQLite temporary journal and lock files
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Environment & local secrets
+.env
+.env*.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+bun.log
+*.log
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# TypeScript incremental build cache
+tsconfig.tsbuildinfo
+
+# Local database (holds connector keys)
+premise.db

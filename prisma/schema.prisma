@@ -1,0 +1,135 @@
+// Premise (The Premise-Decay Engine) — Core Data Model
+// Persistence backed by local SQLite (premise.db)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 1. DecisionArtifact (The Source of Truth)
+model DecisionArtifact {
+  id              String              @id
+  title           String
+  type            String              // ADR | GITHUB_PR | STRATEGY_MEMO | VENDOR_CONTRACT
+  rawContent      String
+  targetLocus     String              // e.g., packages/llm-gateway/src/semantic-cache.ts
+  blastRadius     String              // Summary of what infrastructure/process becomes obsolete if invalidated
+  logicCombinator String              @default("ANY") // ANY (OR gate: 1 broken premise invalidates) | ALL (AND gate: all broken invalidates)
+  dependsOnIds    String              @default("[]")  // JSON array of upstream DecisionArtifact IDs in the multi-hop cascade graph
+  cascadedFromId  String?                             // Upstream DecisionArtifact ID if invalidated via multi-hop cascade
+  monthlyCloudSpendUsd     Float               @default(0.0)
+  maintenanceHoursPerMonth Float               @default(0.0)
+  realizedAnnualSavingsUsd Float               @default(0.0)
+  status          String              @default("HEALTHY") // HEALTHY | AT_RISK | INVALIDATED
+  createdAt       DateTime            @default(now())
+  lastEvaluatedAt DateTime            @default(now())
+
+  premises           Premise[]
+  invalidationEvents InvalidationEvent[]
+  dispatchLogs       OutboundDispatchLog[]
+}
+
+// 2. Premise (The Extracted Assumption)
+model Premise {
+  id                 String              @id
+  artifactId         String
+  claim              String              // Natural language statement extracted from the artifact
+  variableName       String              // Normalized metric name, e.g., upstream_token_cost_usd
+  unit               String              @default("") // e.g., "USD / 1M tokens", "ms", "%"
+  operator           String              // LT | LTE | GT | GTE | EQ | NEQ
+  thresholdValue     String              // Boundary where the decision still holds true
+  currentValue       String              // Latest value returned by the Probe
+  decayWarningMargin Float               @default(0.10) // e.g., 0.10 (within 10% of breaking threshold triggers DECAYING)
+  status             String              @default("VALID") // VALID | DECAYING | BROKEN | UNBOUND
+
+  artifact           DecisionArtifact    @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+  probes             Probe[]
+  invalidationEvents InvalidationEvent[]
+  metricSamples      MetricSample[]
+}
+
+// 3. Probe (The Live Listener Bound to a Premise)
+model Probe {
+  id                     String    @id
+  premiseId              String
+  probeType              String    // HTTP_JSON_PATH | WEB_SCRAPE_EXTRACT | WEBHOOK_INGEST | SQL_METRIC | PROMQL
+  targetUrlOrQuery       String    // Endpoint URL, JSONPath selector, SQL query, or PromQL expression
+  jsonPath               String    @default("$.value")
+  pollingIntervalSeconds Int       @default(60)
+  lastRunAt              DateTime?
+  lastLatencyMs          Int?
+  lastRawResponse        String?
+  lastError              String?
+
+  premise                Premise   @relation(fields: [premiseId], references: [id], onDelete: Cascade)
+}
+
+// 4. InvalidationEvent (The Kill-Switch Output)
+model InvalidationEvent {
+  id              String           @id
+  premiseId       String
+  artifactId      String
+  previousValue   String
+  breakingValue   String
+  thresholdValue  String
+  remediationPlan String           // Auto-generated teardown diff, PR description, or action item
+  realizedAnnualSavingsUsd Float   @default(0.0)
+  acknowledged    Boolean          @default(false)
+  triggeredAt     DateTime         @default(now())
+
+  premise         Premise          @relation(fields: [premiseId], references: [id], onDelete: Cascade)
+  artifact        DecisionArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+  dispatchLogs    OutboundDispatchLog[]
+}
+
+// 5. MetricSample (Time-Series Telemetry History for Sparklines & TTI Forecasting)
+model MetricSample {
+  id           String   @id
+  premiseId    String
+  variableName String
+  value        Float
+  source       String   @default("probe")
+  recordedAt   DateTime @default(now())
+
+  premise      Premise  @relation(fields: [premiseId], references: [id], onDelete: Cascade)
+}
+
+// 6. OutboundDispatchLog (GitHub PR / Issue & Slack / PagerDuty Kill-Switch Dispatches)
+model OutboundDispatchLog {
+  id             String            @id
+  eventId        String
+  artifactId     String
+  channel        String            // GITHUB_PR | GITHUB_ISSUE | SLACK_WEBHOOK | PAGERDUTY_EVENT
+  targetEndpoint String
+  summary        String
+  payloadPreview String
+  responseStatus Int               @default(201)
+  externalUrl    String
+  dispatchedAt   DateTime          @default(now())
+
+  event          InvalidationEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  artifact       DecisionArtifact  @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+}
+
+// 7. LocusBackup (Original File Content Snapshot for Live Teardown Patch Application & 1-Click Rollback)
+model LocusBackup {
+  resolvedPath    String   @id
+  rawLocus        String
+  artifactId      String?
+  originalContent String
+  patchedContent  String
+  appliedAt       DateTime @default(now())
+}
+
+// 8. ConnectorSetting (Production Telemetry & Outbound Dispatch Credentials & Endpoints)
+model ConnectorSetting {
+  id            String   @id // PROMETHEUS | DATADOG | SLACK | PAGERDUTY
+  connectorType String   // PROMETHEUS | DATADOG | SLACK | PAGERDUTY
+  configJson    String   // Encrypted or securely serialized JSON credentials and endpoints
+  updatedAt     DateTime @default(now())
+}
+
