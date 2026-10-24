@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Next.js build output & cache
+.next/
+out/
+
+# Git
+.git/
+.github/
+
+# SQLite temporary journal and lock files
+*.db-wal
+*.db-shm
+*.db-journal
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# TypeScript incremental cache
+tsconfig.tsbuildinfo
+
+# Logs & local env
+*.log
+.env*.local

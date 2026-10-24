@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
+import Link from "next/link";
 import {
   Activity,
   AlertTriangle,
   AlertOctagon,
+  ArrowLeft,
   FileCode2,
   Flame,
   Layers,
@@ -711,6 +713,14 @@ export function PremiseControlPlane({
                 <span className="text-[10px] font-mono px-1.5 py-0.5 bg-zinc-900 border border-zinc-800 text-zinc-400">
                   v3.0 // CI/CD FOR DECISIONS
                 </span>
+                <Link
+                  href="/"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 text-[10px] font-mono text-zinc-400 hover:text-cyan-300 hover:border-cyan-500/50 transition-colors ml-1"
+                  title="Return to Product Landing Page"
+                >
+                  <ArrowLeft className="w-3 h-3" />
+                  <span>Home</span>
+                </Link>
               </div>
               <div className="flex items-center gap-2 text-[10px] font-mono text-zinc-500">
                 <span className="inline-flex items-center gap-1 text-emerald-400">
