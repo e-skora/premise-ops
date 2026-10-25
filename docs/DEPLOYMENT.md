@@ -28,6 +28,7 @@ Ship log:
 - 2026-10-23: First production deploy to Fly (`premise-ops`), DNS added in Cloudflare. Verified with `curl -I`: `https://premise-ops.com` 200, `https://premise-ops.com/demo` 200, `https://www.premise-ops.com` 200, `http://` → 301 to `https://`.
 - 2026-10-25: Auto-deploy on push to `main` live (`.github/workflows/fly-deploy.yml`, secret `FLY_API_TOKEN`). First run (0a8eeba) stopped at tests: a reseed hook hit bun's 5s default timeout, so nothing deployed. Second run (c8e451d) with `--timeout 30000` passed 64 tests, deployed Fly release v2, and the workflow's check got 200 for `/` and `/demo`. Re-checked with `curl` from the Mac: both 200.
 - 2026-10-25: Auto-deploy removed at Elias's request (supersedes the entry above). Deleted `.github/workflows/fly-deploy.yml`, deleted the GitHub secret `FLY_API_TOKEN`, and revoked its Fly deploy token. Deploys are manual again; the live site stays on Fly release v2.
+- 2026-10-25: Correction to the entry above: the live site is on Fly release v3, not v2. The ship-log push (f728693) triggered one last auto-deploy before the workflow was removed in 0c36d05; v3 is built from f728693, whose app code is the same as v2's. After removal, `/` and `/demo` still return 200.
 
 ---
 
