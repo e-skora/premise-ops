@@ -26,6 +26,7 @@ If the Cloudflare proxy (orange cloud) is ever turned on, first add `CNAME _acme
 
 Ship log:
 - 2026-10-23: First production deploy to Fly (`premise-ops`), DNS added in Cloudflare. Verified with `curl -I`: `https://premise-ops.com` 200, `https://premise-ops.com/demo` 200, `https://www.premise-ops.com` 200, `http://` → 301 to `https://`.
+- 2026-10-25: Auto-deploy on push to `main` live (`.github/workflows/fly-deploy.yml`, secret `FLY_API_TOKEN`). First run (0a8eeba) stopped at tests: a reseed hook hit bun's 5s default timeout, so nothing deployed. Second run (c8e451d) with `--timeout 30000` passed 64 tests, deployed Fly release v2, and the workflow's check got 200 for `/` and `/demo`. Re-checked with `curl` from the Mac: both 200.
 
 ---
 
