@@ -26,8 +26,9 @@ jobs:
       - name: Install Dependencies
         run: bun install --frozen-lockfile
 
+      # Per-test reseeding of SQLite has taken 0.1s-7.5s on hosted runners; the 5s default flakes.
       - name: Run Unit & Integration Tests
-        run: bun test
+        run: bun test --timeout 30000
 
   deploy:
     name: Deploy premise-ops to Fly
