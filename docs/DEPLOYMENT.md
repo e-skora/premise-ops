@@ -8,7 +8,7 @@ This guide explains how to deploy **Premise** to **Railway** or **Fly.io** and c
 
 `premise-ops.com` runs on **Fly.io**, app `premise-ops` (org `personal`, region `iad`, one shared-cpu 1 GB machine).
 
-- **Redeploy:** automatic on every push to `main` via `.github/workflows/fly-deploy.yml` (runs `bun test --timeout 30000`, then `flyctl deploy`, then checks `/` and `/demo` return 200). It uses the repo secret `FLY_API_TOKEN`, a deploy token scoped to the `premise-ops` app only. To redeploy by hand: run the workflow from the Actions tab, or `fly deploy --remote-only --ha=false` from the repo root.
+- **Redeploy:** manual only. Pushing to `main` does not change the live site. Run `fly deploy --remote-only --ha=false` from the repo root.
 - **Fly IPs:** shared IPv4 `66.241.124.153`, dedicated IPv6 `2a09:8280:1::1c9:5553:0`.
 - **Certificates:** `fly certs check premise-ops.com` / `fly certs check www.premise-ops.com` (both issued).
 - **Persistence:** no Fly volume is attached, so `premise.db` resets to seed data on every deploy or machine restart.
@@ -27,6 +27,7 @@ If the Cloudflare proxy (orange cloud) is ever turned on, first add `CNAME _acme
 Ship log:
 - 2026-10-23: First production deploy to Fly (`premise-ops`), DNS added in Cloudflare. Verified with `curl -I`: `https://premise-ops.com` 200, `https://premise-ops.com/demo` 200, `https://www.premise-ops.com` 200, `http://` → 301 to `https://`.
 - 2026-10-25: Auto-deploy on push to `main` live (`.github/workflows/fly-deploy.yml`, secret `FLY_API_TOKEN`). First run (0a8eeba) stopped at tests: a reseed hook hit bun's 5s default timeout, so nothing deployed. Second run (c8e451d) with `--timeout 30000` passed 64 tests, deployed Fly release v2, and the workflow's check got 200 for `/` and `/demo`. Re-checked with `curl` from the Mac: both 200.
+- 2026-10-25: Auto-deploy removed at Elias's request (supersedes the entry above). Deleted `.github/workflows/fly-deploy.yml`, deleted the GitHub secret `FLY_API_TOKEN`, and revoked its Fly deploy token. Deploys are manual again; the live site stays on Fly release v2.
 
 ---
 
