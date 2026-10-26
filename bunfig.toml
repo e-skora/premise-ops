@@ -1,0 +1,3 @@
+[test]
+# Hermetic test env: scratch DB, scratch workspace, scrubbed env vars
+preload = ["./src/__tests__/setup/isolate-test-env.ts"]
