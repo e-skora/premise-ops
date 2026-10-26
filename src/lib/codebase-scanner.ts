@@ -7,6 +7,7 @@ import {
   ProbeType,
 } from "./types";
 import { parseTargetLocus } from "./locus-inspector";
+import { resolveWorkspaceRoot } from "./workspace-root";
 
 const SCAN_DIRECTORIES = ["packages", "services", "infra", "ops"];
 const SCAN_EXTENSIONS = new Set([
@@ -40,7 +41,7 @@ function getServerFsAndPath(): {
       return {
         fs,
         path,
-        workspaceRoot: process.cwd(),
+        workspaceRoot: resolveWorkspaceRoot(),
       };
     }
     return null;

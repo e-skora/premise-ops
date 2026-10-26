@@ -6,6 +6,7 @@ import {
   CallerFileDiff,
   MultiFileTeardownPatch,
 } from "./types";
+import { resolveWorkspaceRoot } from "./workspace-root";
 
 export interface ParsedLocusSpec {
   rawLocus: string;
@@ -74,7 +75,7 @@ function getServerFsAndPath(): {
 
       let workspaceRoot = "";
       try {
-        workspaceRoot = process.cwd();
+        workspaceRoot = resolveWorkspaceRoot();
       } catch {
         workspaceRoot = path.resolve(
           path.dirname(url.fileURLToPath(import.meta.url)),

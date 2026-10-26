@@ -54,7 +54,20 @@ import {
 } from "@/lib/outbound-dispatchers";
 import { INITIAL_SEED_ARTIFACTS, SEED_HISTORICAL_SERIES } from "./seed-data";
 
-const DB_PATH = path.join(process.cwd(), "premise.db");
+/**
+ * Database file location. PREMISE_DB_PATH wins; the ./premise.db fallback is
+ * refused under `bun test` so the suite can never write the live database.
+ */
+export function resolveDbPath(): string {
+  const fromEnv = process.env.PREMISE_DB_PATH;
+  if (fromEnv) return fromEnv;
+  if (process.env.NODE_ENV === "test") {
+    throw new Error(
+      "PREMISE_DB_PATH is not set. Tests must use a scratch database (see src/__tests__/setup/isolate-test-env.ts)."
+    );
+  }
+  return path.join(process.cwd(), "premise.db");
+}
 const runtimeRequire = createRequire(import.meta.url);
 
 declare global {
@@ -76,7 +89,7 @@ function createSqliteInstance(filePath: string): DatabaseSync {
 
 export function getDb(): DatabaseSync {
   if (!global.__premiseDb) {
-    const db = createSqliteInstance(DB_PATH);
+    const db = createSqliteInstance(resolveDbPath());
     db.exec("PRAGMA journal_mode = WAL;");
     db.exec("PRAGMA foreign_keys = ON;");
     initSchema(db);

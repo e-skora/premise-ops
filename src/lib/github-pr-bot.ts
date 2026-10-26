@@ -9,6 +9,7 @@ import {
   OPERATOR_SYMBOLS,
 } from "./types";
 import { inspectLocalLocus } from "./locus-inspector";
+import { resolveWorkspaceRoot } from "./workspace-root";
 
 /**
  * Standardizes git branch naming for architectural teardown operations.
@@ -139,7 +140,7 @@ export function createLocalGitTeardownBranch(params: {
   commitSha: string | null;
   message: string;
 } {
-  const workspace = params.workspaceDir || process.cwd();
+  const workspace = params.workspaceDir || resolveWorkspaceRoot();
 
   try {
     // Check if git is available and repo is present
