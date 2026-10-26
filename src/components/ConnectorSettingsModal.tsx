@@ -299,7 +299,9 @@ export function ConnectorSettingsModal({
 
   if (!isOpen) return null;
 
-  const configuredCount = connectors.filter((c) => c.isConfigured).length;
+  const configuredCount = connectors.filter(
+    (c) => c.isConfigured && (extras || c.connectorType !== "PAGERDUTY")
+  ).length;
   const currentSetting = connectors.find((c) => c.connectorType === activeTab);
 
   return (
@@ -327,7 +329,7 @@ export function ConnectorSettingsModal({
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xs font-mono px-2.5 py-1 rounded-full bg-slate-800/80 text-slate-300 border border-slate-700/60">
-              {configuredCount}/4 Active
+              {configuredCount}/{extras ? 4 : 3} Active
             </span>
             <button
               onClick={onClose}
