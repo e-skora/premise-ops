@@ -32,6 +32,7 @@ import {
   TrendingDown,
   Network,
   Command,
+  Compass,
 } from "lucide-react";
 import {
   ArtifactStatus,
@@ -66,6 +67,7 @@ import { DependencyGraph } from "./DependencyGraph";
 import { LocusInspectorPanel } from "./LocusInspectorPanel";
 import { CommandPalette } from "./CommandPalette";
 import { VisualTopologyGraph } from "./VisualTopologyGraph";
+import { WalkthroughTour } from "./WalkthroughTour";
 
 interface PremiseControlPlaneProps {
   initialArtifacts: DecisionArtifactRecord[];
@@ -120,6 +122,22 @@ export function PremiseControlPlane({
   const [isRunningProbes, setIsRunningProbes] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [centerViewMode, setCenterViewMode] = useState<"assertions" | "topology">("assertions");
+  const [isTourOpen, setIsTourOpen] = useState(false);
+
+  // Check URL query parameter on mount (?tour=true) or localStorage to auto-open tour on first visit
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tourQuery = urlParams.get("tour");
+      const tourCompleted = localStorage.getItem("premise_walkthrough_completed");
+      if (tourQuery === "true" || (!tourCompleted && tourQuery !== "false")) {
+        setIsTourOpen(true);
+      }
+    } catch {
+      // LocalStorage or URL search params unavailable
+    }
+  }, []);
 
   // Global Keyboard Shortcuts (Cmd+K for Command Palette, Cmd+G for Topology view)
   useEffect(() => {
@@ -829,6 +847,7 @@ export function PremiseControlPlane({
 
             {/* Horizon E: Architecture Balance Sheet Inefficiency Ticker */}
             <button
+              data-tour="top-telemetry-controls"
               type="button"
               onClick={() => setIsExecutiveBalanceSheetOpen(true)}
               className="px-3 py-1 flex items-center gap-3 bg-zinc-900/60 hover:bg-zinc-800/80 border-l border-zinc-800 transition-colors text-left"
@@ -867,6 +886,20 @@ export function PremiseControlPlane({
               <span className="truncate max-w-[230px]">{statusBannerMsg}</span>
             </div>
           )}
+
+          {/* Glowing Guided Walkthrough Tour Button */}
+          <button
+            type="button"
+            onClick={() => setIsTourOpen(true)}
+            className="flex px-2.5 py-1.5 text-xs font-mono font-semibold bg-cyan-950/80 hover:bg-cyan-900 text-cyan-200 border border-cyan-500/60 hover:border-cyan-400 items-center gap-1.5 transition-all shadow-[0_0_15px_rgba(6,182,212,0.25)] hover:shadow-[0_0_22px_rgba(6,182,212,0.45)] active:scale-95"
+            title="Start 60-second interactive guided walkthrough tour of Premise"
+          >
+            <Compass className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Guided Tour</span>
+            <span className="px-1.5 py-0.2 text-[9px] bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 font-bold rounded-sm uppercase tracking-wider">
+              60s Tour
+            </span>
+          </button>
 
           {/* Quick Search & Command Palette (Cmd+K) Trigger */}
           <button
@@ -1035,6 +1068,7 @@ export function PremiseControlPlane({
           </button>
 
           <button
+            data-tour="top-telemetry-controls"
             type="button"
             onClick={() => setIsTimeMachineOpen(true)}
             className="px-3 py-1.5 text-xs font-mono font-semibold bg-purple-950/80 hover:bg-purple-900 text-purple-200 border border-purple-500/50 flex items-center gap-1.5 transition-colors shadow-sm"
@@ -1075,7 +1109,10 @@ export function PremiseControlPlane({
       {/* 2. MAIN SPLIT-PANE WORKSPACE */}
       <div className="flex-1 grid grid-cols-12 overflow-hidden min-h-0">
         {/* LEFT PANE: Decision Artifact Registry (3 cols) */}
-        <section className="col-span-12 md:col-span-3 border-r border-zinc-800 bg-zinc-950 flex flex-col overflow-hidden min-h-0">
+        <section
+          data-tour="decision-registry"
+          className="col-span-12 md:col-span-3 border-r border-zinc-800 bg-zinc-950 flex flex-col overflow-hidden min-h-0"
+        >
           <div className="p-3 border-b border-zinc-800 space-y-2.5 bg-zinc-900/30">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-1.5">
@@ -1347,6 +1384,7 @@ export function PremiseControlPlane({
 
                 {/* Obsolete Infrastructure Blast Radius Box */}
                 <div
+                  data-tour="cascade-blast-radius"
                   className={`p-3 border ${
                     selectedArtifact.status === "INVALIDATED"
                       ? "bg-rose-950/30 border-rose-500/50"
@@ -1443,6 +1481,7 @@ export function PremiseControlPlane({
                   return (
                     <div
                       key={premise.id}
+                      data-tour="telemetry-probe"
                       className={`border transition-all p-4 space-y-3.5 ${cardBorder}`}
                     >
                       {/* Premise Card Top Row */}
@@ -1743,7 +1782,10 @@ export function PremiseControlPlane({
                       </div>
 
                       {/* INLINE REALITY DRIFT SIMULATOR SLIDER */}
-                      <div className="p-2.5 bg-zinc-950/90 border border-zinc-800/90 space-y-1.5">
+                      <div
+                        data-tour="reality-drift-slider"
+                        className="p-2.5 bg-zinc-950/90 border border-zinc-800/90 space-y-1.5"
+                      >
                         <div className="flex items-center justify-between text-[10px] font-mono">
                           <span className="text-amber-400 flex items-center gap-1 font-semibold">
                             <Sliders className="w-3 h-3" />
@@ -1859,7 +1901,7 @@ export function PremiseControlPlane({
               </div>
 
               {/* REAL LOCAL CODEBASE LOCUS INSPECTOR & GIT APPLY PATCH GENERATOR */}
-              <div id="locus-inspector-section">
+              <div id="locus-inspector-section" data-tour="locus-diff-viewer">
                 <LocusInspectorPanel artifact={selectedArtifact} />
               </div>
 
@@ -2028,6 +2070,15 @@ export function PremiseControlPlane({
             document.getElementById("locus-inspector-section")?.scrollIntoView({ behavior: "smooth" });
           }, 100);
         }}
+        onStartTour={() => setIsTourOpen(true)}
+      />
+
+      {/* Interactive Guided Walkthrough Tour */}
+      <WalkthroughTour
+        isOpen={isTourOpen}
+        onClose={() => setIsTourOpen(false)}
+        onSimulateBreach={handleSimulateBreachForSelected}
+        onSelectArtifact={setSelectedArtifactId}
       />
     </div>
   );

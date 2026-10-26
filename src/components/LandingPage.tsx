@@ -28,6 +28,7 @@ import {
   FileCheck,
   Check,
   Copy,
+  Compass,
 } from "lucide-react";
 
 export function LandingPage() {
@@ -212,8 +213,16 @@ Optimal Threshold Adjustment: +14% safety buffer`,
             </a>
           </nav>
 
-          {/* Right Action: Launch Live Demo */}
+          {/* Right Action: Launch Live Demo & Guided Tour */}
           <div className="flex items-center gap-3">
+            <Link
+              href="/demo?tour=true"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-zinc-900 hover:bg-zinc-800 text-cyan-300 hover:text-cyan-200 border border-cyan-500/40 hover:border-cyan-400 font-mono text-xs transition-colors shadow-sm"
+              title="Start 60-second interactive guided walkthrough tour of Premise"
+            >
+              <Compass className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Take Guided Tour (60s)</span>
+            </Link>
             <Link
               href="/demo"
               className="relative group inline-flex items-center gap-2 px-4 py-2 rounded bg-gradient-to-r from-emerald-500 to-cyan-500 text-zinc-950 font-mono font-bold text-xs uppercase tracking-wider hover:brightness-110 transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(6,182,212,0.5)] active:scale-95"
@@ -266,6 +275,14 @@ Optimal Threshold Adjustment: +14% safety buffer`,
             <Play className="w-4 h-4 fill-current group-hover:scale-110 transition-transform" />
             <span>Launch Live Demo Control Plane</span>
             <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+          </Link>
+
+          <Link
+            href="/demo?tour=true"
+            className="w-full sm:w-auto px-6 py-3.5 rounded bg-zinc-900 border border-cyan-500/50 text-cyan-300 font-mono text-sm hover:bg-zinc-850 hover:text-cyan-200 hover:border-cyan-400 transition-all shadow-[0_0_20px_rgba(6,182,212,0.15)] flex items-center justify-center gap-2"
+          >
+            <Compass className="w-4 h-4 text-cyan-400" />
+            <span>Take Guided Tour (60s)</span>
           </Link>
 
           <a

@@ -189,7 +189,10 @@ ${ev.remediationPlan}
   };
 
   return (
-    <aside className="flex flex-col h-full bg-zinc-950 border-l border-zinc-800 overflow-hidden">
+    <aside
+      data-tour="teardown-dispatch"
+      className="flex flex-col h-full bg-zinc-950 border-l border-zinc-800 overflow-hidden"
+    >
       {/* Pane Header */}
       <div className="px-4 py-3 border-b border-zinc-800 bg-zinc-900/40 flex items-center justify-between">
         <div className="flex items-center gap-2">

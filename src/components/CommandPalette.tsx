@@ -27,6 +27,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Zap,
+  Compass,
 } from "lucide-react";
 import {
   DecisionArtifactRecord,
@@ -60,6 +61,7 @@ export interface CommandPaletteProps {
     combinator: LogicCombinator
   ) => Promise<void>;
   onOpenLocusInspector?: (locus: string) => void;
+  onStartTour?: () => void;
 }
 
 type PaletteCategory = "all" | "commands" | "decisions" | "premises";
@@ -98,6 +100,7 @@ export function CommandPalette({
   onCopyCliCommand,
   onChangeCombinator,
   onOpenLocusInspector,
+  onStartTour,
 }: CommandPaletteProps) {
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<PaletteCategory>("all");
@@ -125,6 +128,33 @@ export function CommandPalette({
     const items: PaletteItem[] = [];
 
     // --- 1. SYSTEM COMMANDS & TOOLS ---
+    if (onStartTour) {
+      items.push({
+        id: "cmd-start-tour",
+        title: "Start Guided Tour / Walkthrough",
+        subtitle: "Interactive 60s spotlight tour of architectural contracts & drift",
+        category: "commands",
+        badge: "60S TOUR",
+        badgeStyle: "bg-cyan-950 text-cyan-300 border-cyan-500/50 font-bold",
+        icon: <Compass className="w-4 h-4 text-cyan-400" />,
+        keywords: [
+          "tour",
+          "walkthrough",
+          "guide",
+          "explainer",
+          "bubbles",
+          "demo",
+          "start",
+          "onboarding",
+          "spotlight",
+        ],
+        action: () => {
+          onClose();
+          onStartTour();
+        },
+      });
+    }
+
     items.push({
       id: "cmd-probes-run",
       title: "Run All Probes Now",
