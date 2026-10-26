@@ -34,3 +34,6 @@ Thumbs.db
 
 # TypeScript incremental build cache
 tsconfig.tsbuildinfo
+
+# Local handoff notes (not part of the repo)
+.handoffs/
