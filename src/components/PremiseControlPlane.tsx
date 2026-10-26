@@ -73,6 +73,8 @@ interface PremiseControlPlaneProps {
   initialArtifacts: DecisionArtifactRecord[];
   initialInvalidationEvents: InvalidationEventRecord[];
   compilerTemplates: CompilerTemplate[];
+  /** Public demo mode: shows the private-sandbox banner */
+  publicDemo?: boolean;
 }
 
 interface InlineEditDraft {
@@ -89,6 +91,7 @@ export function PremiseControlPlane({
   initialArtifacts,
   initialInvalidationEvents,
   compilerTemplates,
+  publicDemo = false,
 }: PremiseControlPlaneProps) {
   const [artifacts, setArtifacts] =
     useState<DecisionArtifactRecord[]>(initialArtifacts);
@@ -715,6 +718,14 @@ export function PremiseControlPlane({
 
   return (
     <div className="h-screen w-screen overflow-hidden flex flex-col bg-zinc-950 text-zinc-100 select-none">
+      {publicDemo && (
+        <div
+          role="status"
+          className="shrink-0 border-b border-amber-500/30 bg-amber-500/10 px-4 py-1.5 text-center text-[11px] font-mono text-amber-300"
+        >
+          Public demo. Your changes are private to you and reset after 24 hours.
+        </div>
+      )}
       {/* 1. TOP TELEMETRY BAR */}
       <header className="border-b border-zinc-800 bg-zinc-950 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shrink-0 z-40">
         {/* Left: Brand & System Status */}

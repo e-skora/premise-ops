@@ -595,6 +595,8 @@ export interface ConnectorMaskedSetting {
   id: ConnectorType;
   connectorType: ConnectorType;
   isConfigured: boolean;
+  /** Public demo: an example entry shown for illustration, never used */
+  isDemoPlaceholder?: boolean;
   summary: string;
   maskedConfig: Record<string, unknown>;
   updatedAt: string;

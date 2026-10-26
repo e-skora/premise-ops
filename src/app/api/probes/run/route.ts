@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { executeActiveProbes } from "@/db";
+import { withDemoSandbox } from "@/lib/demo-sandbox";
 
-export async function POST(req: NextRequest) {
+export const dynamic = "force-dynamic";
+
+async function handlePost(req: NextRequest) {
   try {
     let body: { artifactId?: string; premiseId?: string } = {};
     try {
@@ -27,7 +30,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function GET() {
+async function handleGet() {
   const result = await executeActiveProbes();
   return NextResponse.json({
     ok: true,
@@ -35,3 +38,6 @@ export async function GET() {
     ...result,
   });
 }
+
+export const POST = withDemoSandbox(handlePost);
+export const GET = withDemoSandbox(handleGet);

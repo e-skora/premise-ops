@@ -108,7 +108,7 @@ export function ConnectorSettingsModal({
 
   const populateFormStates = (list: ConnectorMaskedSetting[]) => {
     const prom = list.find((c) => c.connectorType === "PROMETHEUS");
-    if (prom && prom.isConfigured) {
+    if (prom && (prom.isConfigured || prom.isDemoPlaceholder)) {
       const cfg = prom.maskedConfig as Record<string, any>;
       setPromBaseUrl(cfg.baseUrl || "http://localhost:9090");
       setPromAuthType(cfg.authType || "none");
@@ -121,7 +121,7 @@ export function ConnectorSettingsModal({
     }
 
     const dd = list.find((c) => c.connectorType === "DATADOG");
-    if (dd && dd.isConfigured) {
+    if (dd && (dd.isConfigured || dd.isDemoPlaceholder)) {
       const cfg = dd.maskedConfig as Record<string, any>;
       setDdSite(cfg.site || "datadoghq.com");
       setDdApiKey(cfg.apiKey || "");
@@ -129,7 +129,7 @@ export function ConnectorSettingsModal({
     }
 
     const slack = list.find((c) => c.connectorType === "SLACK");
-    if (slack && slack.isConfigured) {
+    if (slack && (slack.isConfigured || slack.isDemoPlaceholder)) {
       const cfg = slack.maskedConfig as Record<string, any>;
       setSlackWebhookUrl(cfg.webhookUrl || "");
       setSlackChannel(cfg.defaultChannel || "#arch-decision-drift");
@@ -137,7 +137,7 @@ export function ConnectorSettingsModal({
     }
 
     const pd = list.find((c) => c.connectorType === "PAGERDUTY");
-    if (pd && pd.isConfigured) {
+    if (pd && (pd.isConfigured || pd.isDemoPlaceholder)) {
       const cfg = pd.maskedConfig as Record<string, any>;
       setPdRoutingKey(cfg.routingKey || "");
       setPdSeverity(cfg.severity || "critical");
@@ -359,7 +359,8 @@ export function ConnectorSettingsModal({
               icon: AlertOctagon,
             },
           ].map((tab) => {
-            const isConfigured = connectors.find((c) => c.connectorType === tab.id)?.isConfigured;
+            const tabSetting = connectors.find((c) => c.connectorType === tab.id);
+            const isConfigured = tabSetting?.isConfigured;
             const Icon = tab.icon;
             const isSelected = activeTab === tab.id;
             return (
@@ -378,7 +379,12 @@ export function ConnectorSettingsModal({
               >
                 <Icon className="w-4 h-4" />
                 <span>{tab.label}</span>
-                {isConfigured ? (
+                {tabSetting?.isDemoPlaceholder ? (
+                  <span
+                    title="Demo placeholder"
+                    className="w-2 h-2 rounded-full bg-amber-400 ring-2 ring-amber-400/20"
+                  />
+                ) : isConfigured ? (
                   <span className="w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-emerald-400/20" />
                 ) : (
                   <span className="w-2 h-2 rounded-full bg-slate-600" />
@@ -424,7 +430,11 @@ export function ConnectorSettingsModal({
                   </div>
                 </div>
                 <span className="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                  {currentSetting?.isConfigured ? "CONFIGURED" : "UNBOUND"}
+                  {currentSetting?.isDemoPlaceholder
+                    ? "DEMO PLACEHOLDER"
+                    : currentSetting?.isConfigured
+                    ? "CONFIGURED"
+                    : "UNBOUND"}
                 </span>
               </div>
 
@@ -558,7 +568,11 @@ export function ConnectorSettingsModal({
                   </div>
                 </div>
                 <span className="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                  {currentSetting?.isConfigured ? "CONFIGURED" : "UNBOUND"}
+                  {currentSetting?.isDemoPlaceholder
+                    ? "DEMO PLACEHOLDER"
+                    : currentSetting?.isConfigured
+                    ? "CONFIGURED"
+                    : "UNBOUND"}
                 </span>
               </div>
 
@@ -644,7 +658,11 @@ export function ConnectorSettingsModal({
                   </div>
                 </div>
                 <span className="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                  {currentSetting?.isConfigured ? "CONFIGURED" : "UNBOUND"}
+                  {currentSetting?.isDemoPlaceholder
+                    ? "DEMO PLACEHOLDER"
+                    : currentSetting?.isConfigured
+                    ? "CONFIGURED"
+                    : "UNBOUND"}
                 </span>
               </div>
 
@@ -752,7 +770,11 @@ export function ConnectorSettingsModal({
                   </div>
                 </div>
                 <span className="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                  {currentSetting?.isConfigured ? "CONFIGURED" : "UNBOUND"}
+                  {currentSetting?.isDemoPlaceholder
+                    ? "DEMO PLACEHOLDER"
+                    : currentSetting?.isConfigured
+                    ? "CONFIGURED"
+                    : "UNBOUND"}
                 </span>
               </div>
 

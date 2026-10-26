@@ -9,13 +9,19 @@ import {
   convertInboxItemToCompiledArtifact,
   scanRepositoryTarget,
 } from "@/lib/repo-scanner";
+import { demoDisabledResponse, withDemoSandbox } from "@/lib/demo-sandbox";
+import { isDemoRepoScanTarget, isPublicDemo } from "@/lib/demo-mode";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
+async function handleGet(req: NextRequest) {
   try {
     const url = new URL(req.url);
-    const target = url.searchParams.get("target") || "github.com/company/core-monorepo";
+    const requestedTarget = url.searchParams.get("target");
+    if (isPublicDemo() && !isDemoRepoScanTarget(requestedTarget)) {
+      return demoDisabledResponse();
+    }
+    const target = requestedTarget || "github.com/company/core-monorepo";
     const existingArtifacts = getAllArtifactsWithRelations();
     const scanResult = scanRepositoryTarget(target, existingArtifacts);
     return NextResponse.json({ ok: true, ...scanResult });
@@ -25,7 +31,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function POST(req: NextRequest) {
+async function handlePost(req: NextRequest) {
   try {
     const body = (await req.json()) as {
       action?: "scan" | "accept" | "acceptAll" | "dismiss";
@@ -34,6 +40,9 @@ export async function POST(req: NextRequest) {
       itemIds?: string[];
     };
 
+    if (isPublicDemo() && !isDemoRepoScanTarget(body.repoTarget)) {
+      return demoDisabledResponse();
+    }
     const target = body.repoTarget || "github.com/company/core-monorepo";
     let existingArtifacts = getAllArtifactsWithRelations();
     const scanResult = scanRepositoryTarget(target, existingArtifacts);
@@ -112,3 +121,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+export const GET = withDemoSandbox(handleGet);
+export const POST = withDemoSandbox(handlePost);

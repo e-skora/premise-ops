@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { getFinOpsLedger } from "@/db";
+import { withDemoSandbox } from "@/lib/demo-sandbox";
 
-export async function GET(request: Request) {
+export const dynamic = "force-dynamic";
+
+async function handleGet(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const hourlyRateParam = searchParams.get("hourlyRate");
@@ -20,3 +23,5 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+export const GET = withDemoSandbox(handleGet);

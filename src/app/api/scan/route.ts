@@ -8,16 +8,17 @@ import {
   convertDiscoveredToCompiledOutput,
   scanWorkspaceForPremises,
 } from "@/lib/codebase-scanner";
+import { withDemoSandbox } from "@/lib/demo-sandbox";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+async function handleGet() {
   const existingArtifacts = getAllArtifactsWithRelations();
   const scanResult = scanWorkspaceForPremises(existingArtifacts);
   return NextResponse.json(scanResult);
 }
 
-export async function POST(req: NextRequest) {
+async function handlePost(req: NextRequest) {
   try {
     const body = (await req.json()) as {
       id?: string;
@@ -62,3 +63,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
+
+export const GET = withDemoSandbox(handleGet);
+export const POST = withDemoSandbox(handlePost);

@@ -9,10 +9,12 @@ import {
   rollbackLocusPatchFromBackup,
 } from "@/db";
 import { Operator } from "@/lib/types";
+import { demoDisabledResponse, withDemoSandbox } from "@/lib/demo-sandbox";
+import { isPublicDemo } from "@/lib/demo-mode";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
+async function handleGet(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const targetLocus =
     searchParams.get("targetLocus") ||
@@ -53,7 +55,11 @@ export async function GET(req: NextRequest) {
   });
 }
 
-export async function POST(req: NextRequest) {
+async function handlePost(req: NextRequest) {
+  // Public demo: preview diffs only, never write or roll back real files
+  if (isPublicDemo()) {
+    return demoDisabledResponse();
+  }
   try {
     const body = (await req.json()) as {
       action: "apply" | "rollback";
@@ -150,3 +156,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
+
+export const GET = withDemoSandbox(handleGet);
+export const POST = withDemoSandbox(handlePost);

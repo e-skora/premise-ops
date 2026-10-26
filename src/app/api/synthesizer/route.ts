@@ -3,8 +3,11 @@ import { getAllArtifactsWithRelations } from "@/db";
 import { synthesizeReplacementAdr } from "@/lib/sunset-synthesizer";
 import { retireAndPromoteArtifact } from "@/lib/sunset-synthesizer-server";
 import { buildMultiFileTeardownPatch } from "@/lib/locus-inspector";
+import { withDemoSandbox } from "@/lib/demo-sandbox";
 
-export async function POST(request: Request) {
+export const dynamic = "force-dynamic";
+
+async function handlePost(request: Request) {
   try {
     const body = await request.json();
     const { action, artifactId, applyMultiFileTeardown, customSynthesized } =
@@ -75,3 +78,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+export const POST = withDemoSandbox(handlePost);

@@ -53,6 +53,8 @@ import {
   buildPagerDutyV2Payload,
 } from "@/lib/outbound-dispatchers";
 import { INITIAL_SEED_ARTIFACTS, SEED_HISTORICAL_SERIES } from "./seed-data";
+import { getActiveSandboxDbPath } from "./sandbox-context";
+import { isPublicDemo } from "@/lib/demo-mode";
 
 /**
  * Database file location. PREMISE_DB_PATH wins; the ./premise.db fallback is
@@ -73,7 +75,12 @@ const runtimeRequire = createRequire(import.meta.url);
 declare global {
   // eslint-disable-next-line no-var
   var __premiseDb: DatabaseSync | undefined;
+  // eslint-disable-next-line no-var
+  var __premiseSandboxDbs: Map<string, DatabaseSync> | undefined;
 }
+
+// Open per-visitor sandbox connections, least recently used first
+const MAX_OPEN_SANDBOX_DBS = 64;
 
 function createSqliteInstance(filePath: string): DatabaseSync {
   const isBun =
@@ -87,16 +94,57 @@ function createSqliteInstance(filePath: string): DatabaseSync {
   return new NodeDatabaseSync(filePath);
 }
 
+function openInitializedDb(filePath: string): DatabaseSync {
+  const db = createSqliteInstance(filePath);
+  db.exec("PRAGMA journal_mode = WAL;");
+  db.exec("PRAGMA foreign_keys = ON;");
+  initSchema(db);
+  seedIfEmpty(db);
+  return db;
+}
+
 export function getDb(): DatabaseSync {
+  const sandboxDbPath = getActiveSandboxDbPath();
+  if (sandboxDbPath) {
+    return openDatabaseAt(sandboxDbPath);
+  }
   if (!global.__premiseDb) {
-    const db = createSqliteInstance(resolveDbPath());
-    db.exec("PRAGMA journal_mode = WAL;");
-    db.exec("PRAGMA foreign_keys = ON;");
-    initSchema(db);
-    seedIfEmpty(db);
-    global.__premiseDb = db;
+    global.__premiseDb = openInitializedDb(resolveDbPath());
   }
   return global.__premiseDb;
+}
+
+/**
+ * Opens (or reuses) a schema-initialized, seeded database at an explicit path.
+ * Used for public demo sandboxes and their seed template.
+ */
+export function openDatabaseAt(filePath: string): DatabaseSync {
+  const cache = (global.__premiseSandboxDbs ??= new Map());
+  const cached = cache.get(filePath);
+  if (cached) {
+    cache.delete(filePath);
+    cache.set(filePath, cached);
+    return cached;
+  }
+  const db = openInitializedDb(filePath);
+  cache.set(filePath, db);
+  while (cache.size > MAX_OPEN_SANDBOX_DBS) {
+    const oldestPath = cache.keys().next().value as string;
+    closeDatabaseAt(oldestPath);
+  }
+  return db;
+}
+
+export function closeDatabaseAt(filePath: string): void {
+  const cache = global.__premiseSandboxDbs;
+  const db = cache?.get(filePath);
+  if (!cache || !db) return;
+  cache.delete(filePath);
+  try {
+    db.close();
+  } catch {
+    // Already closed
+  }
 }
 
 function initSchema(db: DatabaseSync) {
@@ -1304,6 +1352,9 @@ export async function executeActiveProbes(options?: {
 }> {
   const db = getDb();
   const liveSnapshot = getLiveTelemetrySnapshot();
+  // Public demo: never call out to Prometheus, Datadog or arbitrary URLs.
+  // Probes fall back to this visitor's own telemetry store instead.
+  const allowOutbound = !isPublicDemo();
 
   const allSamples = db
     .prepare(
@@ -1389,7 +1440,7 @@ export async function executeActiveProbes(options?: {
       }
     } else if (probe.probeType === "PROMQL" && !options?.applyMicroDrift) {
       let promLiveSucceeded = false;
-      const promSetting = getConnectorSetting("PROMETHEUS");
+      const promSetting = allowOutbound ? getConnectorSetting("PROMETHEUS") : null;
       if (promSetting) {
         try {
           const promConfig = JSON.parse(promSetting.configJson) as PrometheusConfig;
@@ -1452,7 +1503,7 @@ export async function executeActiveProbes(options?: {
       probe.probeType === "DATADOG_METRIC" &&
       !options?.applyMicroDrift
     ) {
-      const ddSetting = getConnectorSetting("DATADOG");
+      const ddSetting = allowOutbound ? getConnectorSetting("DATADOG") : null;
       if (ddSetting) {
         try {
           const ddConfig = JSON.parse(ddSetting.configJson) as DatadogConfig;
@@ -1486,7 +1537,8 @@ export async function executeActiveProbes(options?: {
       }
     } else if (
       probe.probeType === "HTTP_JSON_PATH" &&
-      probe.targetUrlOrQuery.startsWith("http")
+      probe.targetUrlOrQuery.startsWith("http") &&
+      allowOutbound
     ) {
       try {
         const controller = new AbortController();
@@ -1743,6 +1795,8 @@ export async function dispatchInvalidationAlert(params: {
   if (!ev) {
     throw new Error(`InvalidationEvent ${params.eventId} not found`);
   }
+  // Public demo never sends anything for real
+  const dryRun = isPublicDemo() ? true : params.dryRun;
 
   const nowIso = new Date().toISOString();
   const dispatchId = `dsp-${Date.now()}-${Math.floor(Math.random() * 999)}`;
@@ -1766,7 +1820,7 @@ export async function dispatchInvalidationAlert(params: {
       headBranch: params.branchName,
       baseBranch: params.baseBranch,
       githubToken: params.githubToken,
-      dryRun: params.dryRun,
+      dryRun,
     });
 
     targetEndpoint = prResult.targetEndpoint;
@@ -1832,7 +1886,7 @@ export async function dispatchInvalidationAlert(params: {
       event: ev,
       channel: defaultChannel,
       username: botUsername,
-      dryRun: params.dryRun,
+      dryRun,
     });
 
     targetEndpoint = slackResult.webhookUrl;
@@ -1873,7 +1927,7 @@ export async function dispatchInvalidationAlert(params: {
       event: ev,
       severity,
       customEndpoint,
-      dryRun: params.dryRun,
+      dryRun,
     });
 
     targetEndpoint = pdResult.targetEndpoint;
@@ -2198,7 +2252,55 @@ export function deleteConnectorSetting(connectorType: ConnectorType): boolean {
   return Number(res.changes) > 0;
 }
 
+// Example connector entries shown in the public demo; never configured or used
+const DEMO_PLACEHOLDER_CONNECTORS: Record<
+  ConnectorType,
+  { summary: string; maskedConfig: Record<string, unknown> }
+> = {
+  PROMETHEUS: {
+    summary: "Demo placeholder: thanos-querier.example.internal",
+    maskedConfig: {
+      baseUrl: "https://thanos-querier.example.internal",
+      authType: "bearer",
+      bearerToken: "****demo",
+      username: "",
+      password: "",
+      customHeaders: { "THANOS-TENANT-ID": "demo" },
+    },
+  },
+  DATADOG: {
+    summary: "Demo placeholder: api.datadoghq.com",
+    maskedConfig: { site: "datadoghq.com", apiKey: "****demo", appKey: "****demo" },
+  },
+  SLACK: {
+    summary: "Demo placeholder: #arch-decision-drift",
+    maskedConfig: {
+      webhookUrl: "****demo",
+      defaultChannel: "#arch-decision-drift",
+      botUsername: "Premise Kill-Switch Bot",
+    },
+  },
+  PAGERDUTY: {
+    summary: "Demo placeholder: routing key",
+    maskedConfig: { routingKey: "****demo", severity: "critical" },
+  },
+};
+
 export function getMaskedConnectorSettings(): ConnectorMaskedSetting[] {
+  if (isPublicDemo()) {
+    return (Object.keys(DEMO_PLACEHOLDER_CONNECTORS) as ConnectorType[]).map(
+      (type) => ({
+        id: type,
+        connectorType: type,
+        isConfigured: false,
+        isDemoPlaceholder: true,
+        summary: DEMO_PLACEHOLDER_CONNECTORS[type].summary,
+        maskedConfig: DEMO_PLACEHOLDER_CONNECTORS[type].maskedConfig,
+        updatedAt: "",
+      })
+    );
+  }
+
   const allSaved = getAllConnectorSettings();
   const savedMap = new Map(allSaved.map((s) => [s.id, s]));
 

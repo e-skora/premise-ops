@@ -7,6 +7,7 @@ import {
   MultiFileTeardownPatch,
 } from "./types";
 import { resolveWorkspaceRoot } from "./workspace-root";
+import { DEMO_DISABLED_MESSAGE, isPublicDemo } from "./demo-mode";
 
 export interface ParsedLocusSpec {
   rawLocus: string;
@@ -453,6 +454,17 @@ export function applyTeardownPatchToLocalFile(params: {
   const serverMods = getServerFsAndPath();
   const inspection = inspectLocalLocus(params.targetLocus);
 
+  if (isPublicDemo()) {
+    return {
+      ok: false,
+      resolvedPath: inspection.resolvedPath,
+      originalContent: "",
+      patchedContent: "",
+      inspection,
+      error: DEMO_DISABLED_MESSAGE,
+    };
+  }
+
   if (!serverMods || !inspection.exists) {
     return {
       ok: false,
@@ -528,6 +540,13 @@ export function writeExactFileContentToLocus(
   inspection: LocusInspectionResult;
   error?: string;
 } {
+  if (isPublicDemo()) {
+    return {
+      ok: false,
+      inspection: inspectLocalLocus(rawLocus),
+      error: DEMO_DISABLED_MESSAGE,
+    };
+  }
   const serverMods = getServerFsAndPath();
   if (!serverMods) {
     return {

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { dispatchInvalidationAlert, getAllArtifactsWithRelations } from "@/db";
 import { DispatchChannelEnum } from "@/lib/types";
+import { withDemoSandbox } from "@/lib/demo-sandbox";
+
+export const dynamic = "force-dynamic";
 
 const DispatchSchema = z.object({
   eventId: z.string(),
@@ -14,7 +17,7 @@ const DispatchSchema = z.object({
   dryRun: z.boolean().optional(),
 });
 
-export async function POST(req: NextRequest) {
+async function handlePost(req: NextRequest) {
   try {
     const body = await req.json();
     const parsed = DispatchSchema.parse(body);
@@ -41,7 +44,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function GET(req: NextRequest) {
+async function handleGet(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const eventId = searchParams.get("eventId");
@@ -65,3 +68,6 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+
+export const POST = withDemoSandbox(handlePost);
+export const GET = withDemoSandbox(handleGet);

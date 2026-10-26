@@ -10,6 +10,7 @@ import {
 } from "./types";
 import { inspectLocalLocus } from "./locus-inspector";
 import { resolveWorkspaceRoot } from "./workspace-root";
+import { isPublicDemo } from "./demo-mode";
 
 /**
  * Standardizes git branch naming for architectural teardown operations.
@@ -240,7 +241,9 @@ export async function publishGitHubPullRequest(
     params.headBranch || formatTeardownBranchName(event.artifactId);
   const token =
     params.githubToken || process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
-  const isDryRun = Boolean(params.dryRun || !token);
+  // Public demo never creates branches or opens real PRs
+  const publicDemo = isPublicDemo();
+  const isDryRun = Boolean(params.dryRun || !token || publicDemo);
 
   const title = `chore(teardown): decommission ${event.artifactTitle || "obsolete architecture"} (${event.variableName || "metric"} breached)`;
   const bodyMarkdown = generateTeardownPrBody({
@@ -267,13 +270,20 @@ export async function publishGitHubPullRequest(
   const locusInspection = inspectLocalLocus(
     event.targetLocus || artifact?.targetLocus || ""
   );
-  const branchRes = createLocalGitTeardownBranch({
-    branchName,
-    commitMessage: title,
-    resolvedFilePath: locusInspection.exists
-      ? locusInspection.resolvedPath
-      : undefined,
-  });
+  const branchRes = publicDemo
+    ? {
+        success: true,
+        branchCreated: false,
+        commitSha: null,
+        message: "Local git branch creation is disabled in the public demo.",
+      }
+    : createLocalGitTeardownBranch({
+        branchName,
+        commitMessage: title,
+        resolvedFilePath: locusInspection.exists
+          ? locusInspection.resolvedPath
+          : undefined,
+      });
 
   // If real GitHub token is provided and not dry-run, execute actual REST API call
   if (!isDryRun && token) {

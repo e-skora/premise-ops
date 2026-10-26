@@ -5,17 +5,18 @@ import {
   SCENARIO_PRESETS,
 } from "@/lib/backtest-engine";
 import { BacktestOptions } from "@/lib/types";
+import { withDemoSandbox } from "@/lib/demo-sandbox";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+async function handleGet() {
   return NextResponse.json({
     ok: true,
     presets: SCENARIO_PRESETS,
   });
 }
 
-export async function POST(req: NextRequest) {
+async function handlePost(req: NextRequest) {
   try {
     const body = (await req.json()) as Partial<BacktestOptions>;
     const artifacts = getAllArtifactsWithRelations();
@@ -51,3 +52,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+export const GET = withDemoSandbox(handleGet);
+export const POST = withDemoSandbox(handlePost);
