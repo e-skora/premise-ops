@@ -12,6 +12,7 @@ import {
   executeActiveProbes,
 } from "../db";
 import { CompiledArtifactOutputSchema } from "../lib/types";
+import { resolveWorkspaceRoot } from "../lib/workspace-root";
 
 describe("GitHub Repository Scanner & Discovered Premises Inbox (Premise Engine v2)", () => {
   beforeEach(() => {
@@ -20,11 +21,11 @@ describe("GitHub Repository Scanner & Discovered Premises Inbox (Premise Engine 
 
   test("scanAdrFolder extracts numeric and state premises from docs/adr/*.md", () => {
     const existing = getAllArtifactsWithRelations();
-    const { discovered, adrFilesScanned } = scanAdrFolder(process.cwd(), existing);
+    const { discovered, adrFilesScanned } = scanAdrFolder(resolveWorkspaceRoot(), existing);
 
     expect(adrFilesScanned.length).toBeGreaterThanOrEqual(2);
-    expect(adrFilesScanned).toContain("docs/adr/ADR-005-pinecone-vector-index.md");
-    expect(adrFilesScanned).toContain("docs/adr/ADR-008-tesseract-ocr-pipeline.md");
+    expect(adrFilesScanned).toContain("examples/demo-repo/docs/adr/ADR-005-pinecone-vector-index.md");
+    expect(adrFilesScanned).toContain("examples/demo-repo/docs/adr/ADR-008-tesseract-ocr-pipeline.md");
 
     // ADR-005 Pinecone checks
     const pineconeItems = discovered.filter((d) =>
@@ -62,13 +63,13 @@ describe("GitHub Repository Scanner & Discovered Premises Inbox (Premise Engine 
   test("scanDependencyManifests flags heavy third-party packages and generates architectural prompts", () => {
     const existing = getAllArtifactsWithRelations();
     const { discovered, manifestsScanned } = scanDependencyManifests(
-      process.cwd(),
+      resolveWorkspaceRoot(),
       existing
     );
 
     expect(manifestsScanned.length).toBeGreaterThanOrEqual(2);
-    expect(manifestsScanned).toContain("packages/llm-gateway/package.json");
-    expect(manifestsScanned).toContain("services/ingest-worker/package.json");
+    expect(manifestsScanned).toContain("examples/demo-repo/packages/llm-gateway/package.json");
+    expect(manifestsScanned).toContain("examples/demo-repo/services/ingest-worker/package.json");
 
     // Check detected dependencies
     const pkgNames = discovered.map((d) => d.detectedPackage?.name).filter(Boolean);
@@ -96,7 +97,7 @@ describe("GitHub Repository Scanner & Discovered Premises Inbox (Premise Engine 
 
   test("convertInboxItemToCompiledArtifact formats schema-compliant output for SQLite ingestion", () => {
     const existing = getAllArtifactsWithRelations();
-    const { discovered } = scanAdrFolder(process.cwd(), existing);
+    const { discovered } = scanAdrFolder(resolveWorkspaceRoot(), existing);
     const pineconeCost = discovered.find(
       (d) => d.variableName === "vector_embedding_cost_monthly_usd"
     );
@@ -143,7 +144,7 @@ describe("GitHub Repository Scanner & Discovered Premises Inbox (Premise Engine 
     const existing = getAllArtifactsWithRelations();
     const initialCount = existing.length;
 
-    const { discovered } = scanAdrFolder(process.cwd(), existing);
+    const { discovered } = scanAdrFolder(resolveWorkspaceRoot(), existing);
     const unmonitored = discovered.find((d) => !d.alreadyMonitored);
     expect(unmonitored).toBeDefined();
 

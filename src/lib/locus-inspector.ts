@@ -6,6 +6,8 @@ import {
   CallerFileDiff,
   MultiFileTeardownPatch,
 } from "./types";
+import { resolveWorkspaceRoot } from "./workspace-root";
+import { DEMO_DISABLED_MESSAGE, isPublicDemo } from "./demo-mode";
 
 export interface ParsedLocusSpec {
   rawLocus: string;
@@ -16,7 +18,7 @@ export interface ParsedLocusSpec {
 
 /**
  * Parses a targetLocus string like:
- * - "packages/llm-gateway/src/semantic-cache.ts:L1-L34"
+ * - "examples/demo-repo/packages/llm-gateway/src/semantic-cache.ts:L1-L34"
  * - "src/services/router.ts:L42-110"
  * - "services/ingest-worker/queue.ts:10-28"
  * - "ops/growth/paid-acquisition-budget.yaml"
@@ -74,7 +76,7 @@ function getServerFsAndPath(): {
 
       let workspaceRoot = "";
       try {
-        workspaceRoot = process.cwd();
+        workspaceRoot = resolveWorkspaceRoot();
       } catch {
         workspaceRoot = path.resolve(
           path.dirname(url.fileURLToPath(import.meta.url)),
@@ -452,6 +454,17 @@ export function applyTeardownPatchToLocalFile(params: {
   const serverMods = getServerFsAndPath();
   const inspection = inspectLocalLocus(params.targetLocus);
 
+  if (isPublicDemo()) {
+    return {
+      ok: false,
+      resolvedPath: inspection.resolvedPath,
+      originalContent: "",
+      patchedContent: "",
+      inspection,
+      error: DEMO_DISABLED_MESSAGE,
+    };
+  }
+
   if (!serverMods || !inspection.exists) {
     return {
       ok: false,
@@ -527,6 +540,13 @@ export function writeExactFileContentToLocus(
   inspection: LocusInspectionResult;
   error?: string;
 } {
+  if (isPublicDemo()) {
+    return {
+      ok: false,
+      inspection: inspectLocalLocus(rawLocus),
+      error: DEMO_DISABLED_MESSAGE,
+    };
+  }
   const serverMods = getServerFsAndPath();
   if (!serverMods) {
     return {
@@ -701,7 +721,18 @@ export function discoverCallerBlastRadius(targetLocus: string): {
   }
 
   const symbols = extractExportedSymbols(targetContent);
-  const searchRoots = ["packages", "services", "src", "apps", "infra", "ops"];
+  const searchRoots = [
+    "packages",
+    "services",
+    "src",
+    "apps",
+    "infra",
+    "ops",
+    "examples/demo-repo/packages",
+    "examples/demo-repo/services",
+    "examples/demo-repo/infra",
+    "examples/demo-repo/ops",
+  ];
   const allWorkspaceFiles: string[] = [];
 
   for (const root of searchRoots) {

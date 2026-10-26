@@ -40,13 +40,19 @@ export interface WalkthroughTourProps {
   onClose: () => void;
   onSimulateBreach?: () => void;
   onSelectArtifact?: (artifactId: string) => void;
+  /** PREMISE_EXTRAS: includes the FinOps & Time-Machine step */
+  extras?: boolean;
 }
+
+// Tour steps that point at features hidden unless PREMISE_EXTRAS=1
+const EXTRAS_TOUR_STEP_IDS = ["finops"];
 
 export function WalkthroughTour({
   isOpen,
   onClose,
   onSimulateBreach,
   onSelectArtifact,
+  extras = false,
 }: WalkthroughTourProps) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
@@ -56,7 +62,7 @@ export function WalkthroughTour({
   const [actionTriggered, setActionTriggered] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
-  const steps: TourStep[] = [
+  const allSteps: TourStep[] = [
     {
       id: "registry",
       targetSelector: '[data-tour="decision-registry"]',
@@ -117,7 +123,7 @@ export function WalkthroughTour({
       tag: "STEP 5 // CODEBASE GARBAGE COLLECTION",
       title: "Workspace Locus & Unified Teardown Diffs",
       description:
-        "Premise connects directly to real codebase files on disk (e.g. packages/llm-gateway/src/semantic-cache.ts) and synthesizes git-apply ready unified teardown diffs to cleanly rip out the obsolete abstraction with 1-click apply or rollback.",
+        "Premise connects directly to real codebase files on disk (e.g. examples/demo-repo/packages/llm-gateway/src/semantic-cache.ts) and synthesizes git-apply ready unified teardown diffs to cleanly rip out the obsolete abstraction with 1-click apply or rollback.",
       insight:
         "Automated garbage collection for dead code: Premise doesn't just alert—it authors the deletion diff.",
       preferredPlacement: "top",
@@ -145,6 +151,9 @@ export function WalkthroughTour({
       preferredPlacement: "bottom",
     },
   ];
+  const steps = extras
+    ? allSteps
+    : allSteps.filter((s) => !EXTRAS_TOUR_STEP_IDS.includes(s.id));
 
   const currentStep = steps[currentStepIndex] || steps[0];
 

@@ -11,10 +11,11 @@ import {
 } from "@/db";
 import { COMPILER_TEMPLATES } from "@/db/seed-data";
 import { OperatorEnum, ProbeTypeEnum } from "@/lib/types";
+import { withDemoSandbox } from "@/lib/demo-sandbox";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+async function handleGet() {
   return NextResponse.json({
     artifacts: getAllArtifactsWithRelations(),
     invalidationEvents: getAllInvalidationEvents(),
@@ -23,7 +24,7 @@ export async function GET() {
   });
 }
 
-export async function POST(req: NextRequest) {
+async function handlePost(req: NextRequest) {
   try {
     const body = await req.json();
     if (body.action === "reset") {
@@ -123,3 +124,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
+
+export const GET = withDemoSandbox(handleGet);
+export const POST = withDemoSandbox(handlePost);

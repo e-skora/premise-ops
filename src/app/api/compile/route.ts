@@ -8,6 +8,9 @@ import {
 } from "@/db";
 import { COMPILER_TEMPLATES } from "@/db/seed-data";
 import { ArtifactTypeEnum } from "@/lib/types";
+import { withDemoSandbox } from "@/lib/demo-sandbox";
+
+export const dynamic = "force-dynamic";
 
 const CompileRequestSchema = z.object({
   rawContent: z.string().min(5, "Document content is required"),
@@ -18,13 +21,13 @@ const CompileRequestSchema = z.object({
   persist: z.boolean().default(true),
 });
 
-export async function GET() {
+async function handleGet() {
   return NextResponse.json({
     templates: COMPILER_TEMPLATES,
   });
 }
 
-export async function POST(req: NextRequest) {
+async function handlePost(req: NextRequest) {
   try {
     const body = await req.json();
     const parsed = CompileRequestSchema.parse(body);
@@ -64,3 +67,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
+
+export const GET = withDemoSandbox(handleGet);
+export const POST = withDemoSandbox(handlePost);

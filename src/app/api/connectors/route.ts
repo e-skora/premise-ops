@@ -15,6 +15,10 @@ import {
   testPagerDutyConnection,
   testSlackWebhook,
 } from "@/lib/outbound-dispatchers";
+import { demoDisabledResponse, withDemoSandbox } from "@/lib/demo-sandbox";
+import { isPublicDemo } from "@/lib/demo-mode";
+
+export const dynamic = "force-dynamic";
 
 const ConnectorTypeEnum = z.enum([
   "PROMETHEUS",
@@ -31,7 +35,7 @@ const ConnectorPostSchema = z.object({
   config: z.record(z.unknown()).optional(),
 });
 
-export async function GET() {
+async function handleGet() {
   try {
     const connectors = getMaskedConnectorSettings();
     return NextResponse.json({
@@ -46,7 +50,11 @@ export async function GET() {
   }
 }
 
-export async function POST(req: NextRequest) {
+async function handlePost(req: NextRequest) {
+  // Public demo: no credentials saved, no connectivity tests sent out
+  if (isPublicDemo()) {
+    return demoDisabledResponse();
+  }
   try {
     const body = await req.json();
     const { action, connectorType, config = {} } = ConnectorPostSchema.parse(body);
@@ -146,3 +154,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
+
+export const GET = withDemoSandbox(handleGet);
+export const POST = withDemoSandbox(handlePost);

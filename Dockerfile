@@ -33,6 +33,8 @@ RUN addgroup --system --gid 1001 nodejs && \
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# Bundled demo repo, so teardown loci and the scanners resolve real files
+COPY --from=builder --chown=nextjs:nodejs /app/examples/demo-repo ./examples/demo-repo
 
 # Ensure directory permissions for SQLite database persistence
 RUN chown -R nextjs:nodejs /app

@@ -41,7 +41,7 @@ export function synthesizeReplacementAdr(params: {
     const nextId = "art-adr-015";
     const nextTitle = "ADR-015: Direct Frontier Streaming with Native Vendor Prompt Caching (Replaces ADR-014)";
     const patternName = "Direct Frontier Streaming & Native Prompt Caching";
-    const targetLocus = "packages/llm-gateway/src/semantic-cache.ts:L1-L25";
+    const targetLocus = "examples/demo-repo/packages/llm-gateway/src/semantic-cache.ts:L1-L25";
     const blastRadius = "Replaces 4,200 LOC custom Redis vector cache with zero-infra direct streaming; saves $7,200/yr in dedicated Redis clusters.";
 
     const rationale =
@@ -67,8 +67,8 @@ This replacement architecture remains valid and funded while:
 3. **Gateway Infrastructure Cost:** Monthly cloud infrastructure spend for gateway routing < $100/mo (Eliminate dedicated vector hardware).
 
 ## Blast Radius & Decommissioning
-- 4,200 LOC in \`packages/llm-gateway/src/semantic-cache.ts\` deleted/bypassed.
-- Multi-file callers in \`services/gateway-consumer.ts\` updated to call direct baseline.
+- 4,200 LOC in \`examples/demo-repo/packages/llm-gateway/src/semantic-cache.ts\` deleted/bypassed.
+- Multi-file callers in \`examples/demo-repo/services/gateway-consumer.ts\` updated to call direct baseline.
 - Annual realized savings: $7,200/yr in cloud spend + 168 engineering hours/yr.`;
 
     const compiled: CompiledArtifactOutput = {
@@ -158,7 +158,7 @@ This replacement architecture remains valid and funded while:
     const nextId = "art-adr-016";
     const nextTitle = "ADR-016: Direct Webhook Dispatch with In-Memory Linear Retry (Replaces PR #892)";
     const patternName = "Direct Ephemeral Dispatch & Zero-Outbox Pipeline";
-    const targetLocus = "services/ingest-worker/queue.ts:L1-L25";
+    const targetLocus = "examples/demo-repo/services/ingest-worker/queue.ts:L1-L25";
     const blastRadius = "Removes 1,850 LOC BullMQ dead-letter retry worker + $420/mo secondary relay cluster; eliminates 14ms write overhead.";
 
     const rationale =
@@ -168,7 +168,7 @@ This replacement architecture remains valid and funded while:
 **Status:** Accepted | **Owner:** SRE Platform | **Supersedes:** \`${artifact.title}\` | **Locus:** \`${targetLocus}\`
 
 ## Context & Problem Statement
-In \`PR #892\`, we introduced a dual-write outbox table and BullMQ dead-letter state machine in \`services/ingest-worker/queue.ts\` because the primary webhook provider was dropping events (uptime < 99.9%).
+In \`PR #892\`, we introduced a dual-write outbox table and BullMQ dead-letter state machine in \`examples/demo-repo/services/ingest-worker/queue.ts\` because the primary webhook provider was dropping events (uptime < 99.9%).
 
 Telemetry shows primary provider has sustained >= 99.9% uptime over rolling 30 days. The dual-write database lock and secondary relay cluster now cause 14ms write overhead per checkout.
 
@@ -180,7 +180,7 @@ We remove the BullMQ dead-letter failover state machine and secondary relay clus
 2. **Direct Dispatch Latency:** P99 webhook write overhead < 50ms (Zero outbox table contention).
 
 ## Blast Radius & Decommissioning
-- 1,850 LOC BullMQ retry queue removed from \`services/ingest-worker/queue.ts\`.
+- 1,850 LOC BullMQ retry queue removed from \`examples/demo-repo/services/ingest-worker/queue.ts\`.
 - Decommission secondary webhook relay cluster in \`us-east-1\` ($420/mo saved).`;
 
     const compiled: CompiledArtifactOutput = {
@@ -255,7 +255,7 @@ We remove the BullMQ dead-letter failover state machine and secondary relay clus
     const nextId = "art-memo-017";
     const nextTitle = "MEMO-017: Product-Led Growth & Open-Source Community Telemetry (Replaces GTM-Q3)";
     const patternName = "Product-Led Organic Growth & Developer Loops";
-    const targetLocus = "ops/growth/paid-acquisition-budget.yaml:L1-L20";
+    const targetLocus = "examples/demo-repo/ops/growth/paid-acquisition-budget.yaml:L1-L20";
     const blastRadius = "Pauses $45,000/mo high-intent search ad spend and sunsets 3 Clearbit attribution enrichment workers.";
 
     const rationale =

@@ -153,7 +153,7 @@ describe("Horizon E: Architecture Balance Sheet, Inefficiency Drag Ledger & Auto
         title: "ADR-099: On-Premises ElasticSearch Cluster",
         type: "ADR",
         status: "INVALIDATED",
-        targetLocus: "packages/search/elastic.ts:L1-L20",
+        targetLocus: "examples/demo-repo/packages/search/elastic.ts:L1-L20",
         rawContent: "Deploy self-hosted elasticsearch cluster",
         monthlyCloudSpendUsd: 1200,
         maintenanceHoursPerMonth: 8,
@@ -172,7 +172,7 @@ describe("Horizon E: Architecture Balance Sheet, Inefficiency Drag Ledger & Auto
 
   describe("Multi-File Caller Blast Radius & Unified Teardown Diffs", () => {
     test("discoverCallerBlastRadius identifies workspace callers referencing exported symbols", () => {
-      const locus = "packages/llm-gateway/src/semantic-cache.ts:L1-L30";
+      const locus = "examples/demo-repo/packages/llm-gateway/src/semantic-cache.ts:L1-L30";
       const blastRadius = discoverCallerBlastRadius(locus);
 
       expect(blastRadius.symbols).toContain("routeInferenceWithSemanticCache");
@@ -189,7 +189,7 @@ describe("Horizon E: Architecture Balance Sheet, Inefficiency Drag Ledger & Auto
     });
 
     test("buildMultiFileTeardownPatch creates coordinated multi-file unified diff across root and callers", () => {
-      const locus = "packages/llm-gateway/src/semantic-cache.ts:L1-L30";
+      const locus = "examples/demo-repo/packages/llm-gateway/src/semantic-cache.ts:L1-L30";
       const multiPatch = buildMultiFileTeardownPatch({
         targetLocus: locus,
         artifactTitle: "ADR-014: Custom Semantic Caching Microservice",
@@ -210,8 +210,8 @@ describe("Horizon E: Architecture Balance Sheet, Inefficiency Drag Ledger & Auto
       );
       expect(consumerDiff).toBeDefined();
       expect(consumerDiff?.unifiedDiff).toContain("PREMISE KILL-SWITCH");
-      expect(multiPatch.combinedUnifiedDiff).toContain("--- a/packages/llm-gateway/src/semantic-cache.ts");
-      expect(multiPatch.combinedUnifiedDiff).toContain("--- a/services/gateway-consumer.ts");
+      expect(multiPatch.combinedUnifiedDiff).toContain("--- a/examples/demo-repo/packages/llm-gateway/src/semantic-cache.ts");
+      expect(multiPatch.combinedUnifiedDiff).toContain("--- a/examples/demo-repo/services/gateway-consumer.ts");
     });
   });
 

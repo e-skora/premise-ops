@@ -1,9 +1,10 @@
 import { NextRequest } from "next/server";
 import { executeActiveProbes } from "@/db";
+import { withDemoSandbox } from "@/lib/demo-sandbox";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
+async function handleGet(req: NextRequest) {
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
@@ -57,3 +58,5 @@ export async function GET(req: NextRequest) {
     },
   });
 }
+
+export const GET = withDemoSandbox(handleGet);

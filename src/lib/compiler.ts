@@ -7,6 +7,7 @@ import {
   ProbeType,
 } from "./types";
 import { COMPILER_TEMPLATES } from "@/db/seed-data";
+import { isPublicDemo } from "./demo-mode";
 
 /**
  * Pipeline A: The Premise Compiler
@@ -47,7 +48,8 @@ export async function compileDecisionArtifact(input: {
   }
 
   // 2. If OpenAI API Key is present in environment, attempt live LLM structured extraction
-  const apiKey = process.env.OPENAI_API_KEY;
+  // Public demo never calls out to OpenAI; it uses the deterministic parser
+  const apiKey = isPublicDemo() ? undefined : process.env.OPENAI_API_KEY;
   if (apiKey && apiKey.startsWith("sk-")) {
     try {
       const response = await fetch(

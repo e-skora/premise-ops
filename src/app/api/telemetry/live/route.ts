@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getLiveTelemetrySnapshot } from "@/db";
+import { withDemoSandbox } from "@/lib/demo-sandbox";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
+async function handleGet(req: NextRequest) {
   const source =
     req.nextUrl.searchParams.get("source") || "premise-telemetry-bus";
   const metrics = getLiveTelemetrySnapshot();
@@ -15,3 +16,5 @@ export async function GET(req: NextRequest) {
     metrics,
   });
 }
+
+export const GET = withDemoSandbox(handleGet);

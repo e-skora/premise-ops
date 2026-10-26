@@ -4,6 +4,9 @@ import {
   evaluateAndPersistMetricUpdate,
   getAllInvalidationEvents,
 } from "@/db";
+import { withDemoSandbox } from "@/lib/demo-sandbox";
+
+export const dynamic = "force-dynamic";
 
 const WebhookMetricSchema = z
   .object({
@@ -16,7 +19,7 @@ const WebhookMetricSchema = z
     message: "Either variableName or premiseId must be provided",
   });
 
-export async function POST(req: NextRequest) {
+async function handlePost(req: NextRequest) {
   try {
     const body = await req.json();
     const parsed = WebhookMetricSchema.parse(body);
@@ -42,3 +45,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
+
+export const POST = withDemoSandbox(handlePost);

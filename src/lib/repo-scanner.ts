@@ -10,6 +10,7 @@ import {
 } from "./types";
 import { parseTargetLocus } from "./locus-inspector";
 import { scanWorkspaceForPremises } from "./codebase-scanner";
+import { resolveWorkspaceRoot } from "./workspace-root";
 
 export interface PackageKnowledge {
   name: string;
@@ -221,7 +222,7 @@ function getServerFsAndPath(): {
       return {
         fs,
         path,
-        workspaceRoot: process.cwd(),
+        workspaceRoot: resolveWorkspaceRoot(),
       };
     }
     return null;
@@ -248,6 +249,7 @@ export function scanAdrFolder(
     path.join(workspaceRoot, "docs", "adr"),
     path.join(workspaceRoot, "decisions"),
     path.join(workspaceRoot, "docs", "decisions"),
+    path.join(workspaceRoot, "examples", "demo-repo", "docs", "adr"),
   ];
 
   const adrFilesScanned: string[] = [];
@@ -545,7 +547,7 @@ export function scanRepositoryTarget(
   existingArtifacts: DecisionArtifactRecord[]
 ): RepoScanResult {
   const mods = getServerFsAndPath();
-  const root = mods ? mods.workspaceRoot : process.cwd();
+  const root = mods ? mods.workspaceRoot : resolveWorkspaceRoot();
 
   const adrResult = scanAdrFolder(root, existingArtifacts);
   const manifestResult = scanDependencyManifests(root, existingArtifacts);

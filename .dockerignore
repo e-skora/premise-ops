@@ -24,3 +24,7 @@ tsconfig.tsbuildinfo
 # Logs & local env
 *.log
 .env*.local
+
+# Local SQLite databases: the image must never ship one (demo sandboxes seed fresh)
+premise.db
+*.db
