@@ -1,191 +1,102 @@
-# PREMISE (The Premise-Decay Engine) — Agent & Architecture Context
+# PREMISE (The Premise-Decay Engine): Agent & Architecture Context
 
 ## 1. System Overview
-**Premise** (`https://premise-ops.com` — "CI/CD for Architectural & Strategic Decisions") is an executable decision-assertion engine and automated garbage collector for outdated architectural/strategic constraints. It ingests ADRs, GitHub PRs, Strategy Memos, and Vendor Contracts, compiles natural-language assumptions into live probes, continuously evaluates them against telemetry, and generates teardown diffs and outbound alerts when load-bearing premises break.
+**Premise** (`https://premise-ops.com`, "CI/CD for Architectural & Strategic Decisions") is an executable decision-assertion engine and garbage collector for outdated architectural and strategic constraints. It ingests ADRs, GitHub PRs, strategy memos and vendor contracts, compiles their natural-language assumptions into live probes, evaluates them against telemetry, and generates teardown diffs and outbound alerts when load-bearing premises break.
 
-## 2. Environment & Runtime Notes
-- **Node & Bun Paths on this machine**:
-  - Node v24.11.0: `/Users/frank/.nvm/versions/node/v24.11.0/bin`
-  - Bun v1.3.14: `/Users/frank/.bun/bin`
-  - When running commands in non-interactive shells, prepend `export PATH="/Users/frank/.nvm/versions/node/v24.11.0/bin:/Users/frank/.bun/bin:$PATH"`.
-- **SQLite Persistence (`./premise.db`)**:
-  - Backed by zero-config local SQLite in WAL mode via `src/db/index.ts`.
-  - Uses a dual-runtime loader (`createSqliteInstance` in `src/db/index.ts`) that automatically uses `node:sqlite` (`DatabaseSync`) under Node.js and `bun:sqlite` (`Database`) under Bun.
-  - Both `node:sqlite` and `bun:sqlite` are externalized on the server in `next.config.mjs`.
+## 2. Running It
+Make sure `node` (v22+) and `bun` are on PATH.
 
-## 3. Codebase Map & Completed Capabilities (v3.0)
-- **Executable CI/CD CLI Runner & Codebase Scanner**:
-  - `bin/premise-cli.ts`: Standalone CLI (`bun ./bin/premise-cli.ts check`, `scan`, `backtest`, `replay`, `--scenario`, `--steps`, `--shock`, `--noise`, `--apply`, `--rollback`, `--strict`, `--simulate-breach`, `--mutate`, `--reset`, `--json`) that prints ANSI assertion/scan/backtest tables, discovers inline `@premise` blocks, verifies local codebase loci, replays historical time-series scenarios, applies live teardown diffs, and exits with code `1` when any load-bearing premise is `BROKEN`.
-- **Data Model & Types**:
-  - `prisma/schema.prisma`: Canonical schema (`DecisionArtifact` with `dependsOnIds` & `cascadedFromId`, `Premise`, `Probe` with `PROMQL`, `InvalidationEvent`, `MetricSample`, `OutboundDispatchLog`, `LocusBackup`).
-  - `src/lib/types.ts`: Strict TypeScript interfaces and Zod schemas (`CompiledArtifactOutputSchema`, `CompiledPremiseSchema`, `LocusInspectionResult`, `DiscoveredCodebasePremise`).
-  - `src/db/seed-data.ts`: Pre-loaded seed artifacts (`ADR-014`, `VENDOR-04` depending on `ADR-014`, `PR #892`, `GTM-Q3`), historical telemetry time-series (`SEED_HISTORICAL_SERIES`), active `HTTP_JSON_PATH`, `PROMQL`, and `SQL_METRIC` probes, and 3 compiler templates.
-  - `src/db/index.ts`: SQLite WAL database engine, state transitions, multi-hop cascade propagation (`propagateCrossArtifactCascades`), inline Premise/Probe configuration updates (`updatePremiseAndProbeConfig`), real `SQL_METRIC` & `PROMQL` probe execution, live locus patch backups (`LocusBackup`), and outbound dispatch logging.
-- **Core Engines**:
-  - `src/lib/backtest-engine.ts`:
-    - Scenario presets catalog (`price-war`, `latency-spike`, `vendor-outage`, `redis-drain`, `cac-surge`, `historical`, `custom`).
-    - Deterministic pseudo-random time-series generator with step cuts, surges, and basis-point noise.
-    - Quantitative resilience scoring algorithm (0-100 composite score, HIGH / MODERATE / BRITTLE ratings).
-    - Threshold safety buffer optimization advisor (calculates required threshold adjustment to withstand scenario shocks).
-    - Step-by-step portfolio replay simulation with in-memory multi-hop cascade propagation.
-  - `src/lib/codebase-scanner.ts`:
-    - `scanWorkspaceForPremises`: Walks workspace directories (`packages/`, `services/`, `infra/`, `ops/`) to discover inline `@premise` and `@premise-locus` annotations, matching against existing `DecisionArtifact` records or marking untracked.
-    - `convertDiscoveredToCompiledOutput`: Converts discovered inline code assumptions directly into `CompiledArtifactOutput` for 1-click import into `./premise.db`.
-  - `src/lib/probe-engines.ts`:
-    - `executeReadOnlySqlMetricQuery`: Strictly validates read-only SQL queries and executes them against `./premise.db` (with fallback to `TelemetryMetric`).
-    - `evaluatePromQlExpression`: Full PromQL time-series parser and evaluator supporting `avg_over_time`, `last_over_time`, `max_over_time`, `min_over_time`, `delta`, `rate`, `quantile_over_time`, label selectors (`{cluster="..."}`), and arithmetic modifiers (`* 100`, `/ 1000`).
-  - `src/lib/locus-inspector.ts`:
-    - `inspectLocalLocus` & `buildRealGitApplyPatch`: Reads real repository source files at `targetLocus` (e.g., `packages/llm-gateway/src/semantic-cache.ts:L1-L30`) and synthesizes genuine `git apply`-ready unified diffs.
-    - `applyTeardownPatchToLocalFile` & `writeExactFileContentToLocus`: Writes generated teardown diffs directly to local workspace files and provides 1-click lossless rollback from `LocusBackup`.
-  - `src/lib/evaluator.ts`:
-    - `evaluatePremiseState`: Evaluates `LT | LTE | GT | GTE | EQ | NEQ` and `decayWarningMargin` (`VALID` | `DECAYING` | `BROKEN`).
-    - `computeArtifactStatus`: Evaluates parent `DecisionArtifact` health using `ANY` (OR gate) or `ALL` (AND gate) boolean combinators.
-    - `computeDriftForecast`: Linear-regression drift velocity and Time-to-Invalidation (TTI) forecaster over `MetricSample` history.
-    - `generateRemediationPlan`: Produces `git apply`-ready unified teardown diffs from local files and multi-hop cascade specifications.
-  - `src/lib/github-pr-bot.ts`:
-    - `formatTeardownBranchName`: Generates standardized git branch names (`premise/teardown-<artifactId>`).
-    - `generateTeardownPrBody`: Produces architecture-grade GitHub PR Markdown with live breach telemetry, target locus, cascaded multi-hop blast radius, unified diff, and interactive Architecture Council Checklist.
-    - `generateGhCliCommand`: Synthesizes ready-to-run GitHub CLI (`gh pr create`) commands.
-    - `createLocalGitTeardownBranch` & `publishGitHubPullRequest`: Creates local git branches, stages teardown changes, and publishes/stages autonomous Pull Requests via GitHub REST API with graceful dry-run fallback.
-  - `src/lib/compiler.ts`:
-    - `compileDecisionArtifact`: Structured LLM extraction (when `OPENAI_API_KEY` is set) with deterministic AST/clause fallback (`parseDocumentDeterministically` & `extractQuantitativePremises`).
-- **Automated Test Suite & GitHub Actions CI**:
-  - `src/__tests__/evaluator-and-probes.test.ts`: Unit tests for evaluator, drift forecasting, `SQL_METRIC`, and `PROMQL`.
-  - `src/__tests__/scanner-locus-cascade.test.ts`: Integration tests for codebase scanning, live teardown patch application/rollback, and multi-hop cascade propagation.
-  - `src/__tests__/github-pr-bot.test.ts`: Unit and integration tests for Autonomous GitHub PR Bot, branch naming, markdown generation, dry-run packaging, and SQLite dispatch persistence.
-  - `src/__tests__/backtest-engine.test.ts`: Unit and integration tests for Horizon C Historical Drift Backtesting, scenario time-series generation, resilience scoring, threshold optimization, and multi-hop cascade invalidation.
-  - `.github/workflows/premise-ci.yml`: GitHub Actions pipeline running `bun test`, `bun ./bin/premise-cli.ts scan`, and `bun ./bin/premise-cli.ts check`.
-- **API Routes**:
-  - `GET / POST /api/scanner/scan` (`src/app/api/scanner/scan/route.ts`): GitHub Repository Scanner & Auto-Extractor (ADRs, package dependency manifests, inline premises, 1-click single/bulk probe acceptance).
-  - `GET / POST /api/backtest` (`src/app/api/backtest/route.ts`): Scenario presets catalog and on-demand backtest simulation execution.
-  - `POST /api/compile` (`src/app/api/compile/route.ts`): Pipeline A Premise Compiler.
-  - `POST /api/probes/run` (`src/app/api/probes/run/route.ts`): Pipeline B Probe Execution Runner.
-  - `GET / POST /api/scan` (`src/app/api/scan/route.ts`): Codebase Assumption Scanner and 1-click import pipeline.
-  - `POST /api/webhooks/metric` (`src/app/api/webhooks/metric/route.ts`): CI/CD metric ingestion & Chaos Simulator state mutator.
-  - `GET / POST /api/state` (`src/app/api/state/route.ts`): Full state hydration, seed reset, event acknowledgment, `setCombinator`, `setDependencies`, and `updatePremiseConfig`.
-  - `GET / POST /api/locus` (`src/app/api/locus/route.ts`): Real local codebase file inspector, unified diff generator, and live patch applier/rollback.
-  - `GET /api/telemetry/live` (`src/app/api/telemetry/live/route.ts`): Live JSON telemetry bus for `HTTP_JSON_PATH` probes.
-  - `GET /api/stream` (`src/app/api/stream/route.ts`): Server-Sent Events (SSE) autonomous background probe daemon.
-  - `GET / POST /api/dispatch` (`src/app/api/dispatch/route.ts`): Outbound kill-switch dispatcher & Autonomous GitHub PR Bot (`GITHUB_PR`, `GITHUB_ISSUE`, `SLACK_WEBHOOK`, `PAGERDUTY_EVENT`).
-- **Core Engines**:
-  - `src/lib/repo-scanner.ts`:
-    - `scanAdrFolder`: Scans markdown decision logs in `docs/adr/*.md` and `decisions/*.md`, extracts numeric constraints, unit economics, operators, and sunset blast radius criteria.
-    - `scanDependencyManifests`: Parses `package.json`, `requirements.txt`, `go.mod`, flags heavy third-party packages (`HEAVY_DEPENDENCY_CATALOG`), and generates architectural challenge prompts (`"Why do you depend on [Package X]? What upstream price or latency assumption justifies this code?"`).
-    - `scanRepositoryTarget`: Aggregates ADRs, dependency manifests, and inline codebase premises, maintaining deduplicated findings and unmonitored pending inbox counts.
-    - `convertInboxItemToCompiledArtifact`: Converts discovered findings into schema-compliant `CompiledArtifactOutput` for instant SQLite insertion and probe execution.
-  - `src/lib/backtest-engine.ts`:
-    - Scenario presets catalog (`price-war`, `latency-spike`, `vendor-outage`, `redis-drain`, `cac-surge`, `historical`, `custom`).
-    - Deterministic pseudo-random time-series generator with step cuts, surges, and basis-point noise.
-    - Quantitative resilience scoring algorithm (0-100 composite score, HIGH / MODERATE / BRITTLE ratings).
-    - Threshold safety buffer optimization advisor (calculates required threshold adjustment to withstand scenario shocks).
-    - Step-by-step portfolio replay simulation with in-memory multi-hop cascade propagation.
-  - `src/lib/codebase-scanner.ts`:
-    - `scanWorkspaceForPremises`: Walks workspace directories (`packages/`, `services/`, `infra/`, `ops/`) to discover inline `@premise` and `@premise-locus` annotations, matching against existing `DecisionArtifact` records or marking untracked.
-    - `convertDiscoveredToCompiledOutput`: Converts discovered inline code assumptions directly into `CompiledArtifactOutput` for 1-click import into `./premise.db`.
-  - `src/lib/probe-engines.ts`:
-    - `executeReadOnlySqlMetricQuery`: Strictly validates read-only SQL queries and executes them against `./premise.db` (with fallback to `TelemetryMetric`).
-    - `evaluatePromQlExpression`: Full PromQL time-series parser and evaluator supporting `avg_over_time`, `last_over_time`, `max_over_time`, `min_over_time`, `delta`, `rate`, `quantile_over_time`, label selectors (`{cluster="..."}`), and arithmetic modifiers (`* 100`, `/ 1000`).
-  - `src/lib/locus-inspector.ts`:
-    - `inspectLocalLocus` & `buildRealGitApplyPatch`: Reads real repository source files at `targetLocus` (e.g., `packages/llm-gateway/src/semantic-cache.ts:L1-L30`) and synthesizes genuine `git apply`-ready unified diffs.
-    - `applyTeardownPatchToLocalFile` & `writeExactFileContentToLocus`: Writes generated teardown diffs directly to local workspace files and provides 1-click lossless rollback from `LocusBackup`.
-  - `src/lib/evaluator.ts`:
-    - `evaluatePremiseState`: Evaluates `LT | LTE | GT | GTE | EQ | NEQ` and `decayWarningMargin` (`VALID` | `DECAYING` | `BROKEN`).
-    - `computeArtifactStatus`: Evaluates parent `DecisionArtifact` health using `ANY` (OR gate) or `ALL` (AND gate) boolean combinators.
-    - `computeDriftForecast`: Linear-regression drift velocity and Time-to-Invalidation (TTI) forecaster over `MetricSample` history.
-    - `generateRemediationPlan`: Produces `git apply`-ready unified teardown diffs from local files and multi-hop cascade specifications.
-  - `src/lib/github-pr-bot.ts`:
-    - `formatTeardownBranchName`: Generates standardized git branch names (`premise/teardown-<artifactId>`).
-    - `generateTeardownPrBody`: Produces architecture-grade GitHub PR Markdown with live breach telemetry, target locus, cascaded multi-hop blast radius, unified diff, and interactive Architecture Council Checklist.
-    - `generateGhCliCommand`: Synthesizes ready-to-run GitHub CLI (`gh pr create`) commands.
-    - `createLocalGitTeardownBranch` & `publishGitHubPullRequest`: Creates local git branches, stages teardown changes, and publishes/stages autonomous Pull Requests via GitHub REST API with graceful dry-run fallback.
-  - `src/lib/compiler.ts`:
-    - `compileDecisionArtifact`: Structured LLM extraction (when `OPENAI_API_KEY` is set) with deterministic AST/clause fallback (`parseDocumentDeterministically` & `extractQuantitativePremises`).
-- **Automated Test Suite & GitHub Actions CI**:
-  - `src/__tests__/telemetry-connectors.test.ts`: Unit and integration tests for Horizon D: Prometheus/Thanos instant and range queries, Bearer/Basic auth, Datadog Metric API v2, Slack Block Kit interactive buttons, PagerDuty Events v2 payload delivery, and SQLite credential persistence.
-  - `src/__tests__/repo-scanner.test.ts`: Unit and integration tests for GitHub Repository Scanner, ADR parsing, dependency manifest flags, architectural prompt generation, schema conversion, and 1-click SQLite insertion with live probe invocation.
-  - `src/__tests__/evaluator-and-probes.test.ts`: Unit tests for evaluator, drift forecasting, `SQL_METRIC`, and `PROMQL`.
-  - `src/__tests__/scanner-locus-cascade.test.ts`: Integration tests for codebase scanning, live teardown patch application/rollback, and multi-hop cascade propagation.
-  - `src/__tests__/github-pr-bot.test.ts`: Unit and integration tests for Autonomous GitHub PR Bot, branch naming, markdown generation, dry-run packaging, and SQLite dispatch persistence.
-  - `src/__tests__/backtest-engine.test.ts`: Unit and integration tests for Horizon C Historical Drift Backtesting, scenario time-series generation, resilience scoring, threshold optimization, and multi-hop cascade invalidation.
-  - `.github/workflows/premise-ci.yml`: GitHub Actions pipeline running `bun test`, `bun ./bin/premise-cli.ts scan`, and `bun ./bin/premise-cli.ts check`.
-- **API Routes**:
-  - `GET / POST /api/connectors` (`src/app/api/connectors/route.ts`): Production Telemetry & Outbound Dispatch Credential & Endpoint Manager (save, delete, test connectivity, and masked secret inspection).
-  - `GET / POST /api/scanner/scan` (`src/app/api/scanner/scan/route.ts`): GitHub Repository Scanner & Auto-Extractor (ADRs, package dependency manifests, inline premises, 1-click single/bulk probe acceptance).
-  - `GET / POST /api/backtest` (`src/app/api/backtest/route.ts`): Scenario presets catalog and on-demand backtest simulation execution.
-  - `POST /api/compile` (`src/app/api/compile/route.ts`): Pipeline A Premise Compiler.
-  - `POST /api/probes/run` (`src/app/api/probes/run/route.ts`): Pipeline B Probe Execution Runner.
-  - `GET / POST /api/scan` (`src/app/api/scan/route.ts`): Codebase Assumption Scanner and 1-click import pipeline.
-  - `POST /api/webhooks/metric` (`src/app/api/webhooks/metric/route.ts`): CI/CD metric ingestion & Chaos Simulator state mutator.
-  - `GET / POST /api/state` (`src/app/api/state/route.ts`): Full state hydration, seed reset, event acknowledgment, `setCombinator`, `setDependencies`, and `updatePremiseConfig`.
-  - `GET / POST /api/locus` (`src/app/api/locus/route.ts`): Real local codebase file inspector, unified diff generator, and live patch applier/rollback.
-  - `GET /api/telemetry/live` (`src/app/api/telemetry/live/route.ts`): Live JSON telemetry bus for `HTTP_JSON_PATH` probes.
-  - `GET /api/stream` (`src/app/api/stream/route.ts`): Server-Sent Events (SSE) autonomous background probe daemon.
-  - `GET / POST /api/dispatch` (`src/app/api/dispatch/route.ts`): Outbound kill-switch dispatcher & Autonomous GitHub PR Bot (`GITHUB_PR`, `GITHUB_ISSUE`, `SLACK_WEBHOOK`, `PAGERDUTY_EVENT`).
-- **Core Engines**:
-  - `src/lib/telemetry-connectors.ts`:
-    - `queryPrometheusInstant` & `queryPrometheusRange`: Live Prometheus/Thanos HTTP client querying `/api/v1/query` and `/api/v1/query_range`, supporting Bearer tokens, Basic auth, and custom multi-tenant headers (`THANOS-TENANT-ID`).
-    - `testPrometheusConnection`: Validates live Prometheus connectivity with instant vector probes.
-    - `queryDatadogTimeseries`: Ingests metrics from Datadog Metric API v2 (`POST /api/v2/query/timeseries`) with headers `DD-API-KEY` & `DD-APPLICATION-KEY`, falling back to Datadog v1 timeseries query.
-    - `testDatadogConnection`: Validates API credentials against `/api/v1/validate`.
-  - `src/lib/outbound-dispatchers.ts`:
-    - `buildSlackBlockKitAlert`: Constructs architecture-grade Slack Block Kit cards with header, breach details, locus, blast radius, and interactive buttons (`Acknowledge`, `Open Teardown PR`, `View Control Plane`).
-    - `dispatchSlackWebhookAlert`: Delivers Block Kit payload to live Slack Incoming Webhooks with dry-run support.
-    - `buildPagerDutyV2Payload` & `dispatchPagerDutyEvent`: Delivers incident alerts to PagerDuty Events API v2 (`https://events.pagerduty.com/v2/enqueue`) with deduplication keys and complete custom telemetry details.
-  - `src/lib/repo-scanner.ts`:
-    - `scanAdrFolder`: Scans markdown decision logs in `docs/adr/*.md` and `decisions/*.md`, extracts numeric constraints, unit economics, operators, and sunset blast radius criteria.
-    - `scanDependencyManifests`: Parses `package.json`, `requirements.txt`, `go.mod`, flags heavy third-party packages (`HEAVY_DEPENDENCY_CATALOG`), and generates architectural challenge prompts (`"Why do you depend on [Package X]? What upstream price or latency assumption justifies this code?"`).
-    - `scanRepositoryTarget`: Aggregates ADRs, dependency manifests, and inline codebase premises, maintaining deduplicated findings and unmonitored pending inbox counts.
-    - `convertInboxItemToCompiledArtifact`: Converts discovered findings into schema-compliant `CompiledArtifactOutput` for instant SQLite insertion and probe execution.
-  - `src/lib/backtest-engine.ts`:
-    - Scenario presets catalog (`price-war`, `latency-spike`, `vendor-outage`, `redis-drain`, `cac-surge`, `historical`, `custom`).
-    - Deterministic pseudo-random time-series generator with step cuts, surges, and basis-point noise.
-    - Quantitative resilience scoring algorithm (0-100 composite score, HIGH / MODERATE / BRITTLE ratings).
-    - Threshold safety buffer optimization advisor (calculates required threshold adjustment to withstand scenario shocks).
-    - Step-by-step portfolio replay simulation with in-memory multi-hop cascade propagation.
-  - `src/lib/codebase-scanner.ts`:
-    - `scanWorkspaceForPremises`: Walks workspace directories (`packages/`, `services/`, `infra/`, `ops/`) to discover inline `@premise` and `@premise-locus` annotations, matching against existing `DecisionArtifact` records or marking untracked.
-    - `convertDiscoveredToCompiledOutput`: Converts discovered inline code assumptions directly into `CompiledArtifactOutput` for 1-click import into `./premise.db`.
-  - `src/lib/probe-engines.ts`:
-    - `executeReadOnlySqlMetricQuery`: Strictly validates read-only SQL queries and executes them against `./premise.db` (with fallback to `TelemetryMetric`).
-    - `evaluatePromQlExpression`: Full PromQL time-series parser and evaluator supporting `avg_over_time`, `last_over_time`, `max_over_time`, `min_over_time`, `delta`, `rate`, `quantile_over_time`, label selectors (`{cluster="..."}`), and arithmetic modifiers (`* 100`, `/ 1000`).
-  - `src/lib/locus-inspector.ts`:
-    - `inspectLocalLocus` & `buildRealGitApplyPatch`: Reads real repository source files at `targetLocus` (e.g., `packages/llm-gateway/src/semantic-cache.ts:L1-L30`) and synthesizes genuine `git apply`-ready unified diffs.
-    - `applyTeardownPatchToLocalFile` & `writeExactFileContentToLocus`: Writes generated teardown diffs directly to local workspace files and provides 1-click lossless rollback from `LocusBackup`.
-  - `src/lib/evaluator.ts`:
-    - `evaluatePremiseState`: Evaluates `LT | LTE | GT | GTE | EQ | NEQ` and `decayWarningMargin` (`VALID` | `DECAYING` | `BROKEN`).
-    - `computeArtifactStatus`: Evaluates parent `DecisionArtifact` health using `ANY` (OR gate) or `ALL` (AND gate) boolean combinators.
-    - `computeDriftForecast`: Linear-regression drift velocity and Time-to-Invalidation (TTI) forecaster over `MetricSample` history.
-    - `generateRemediationPlan`: Produces `git apply`-ready unified teardown diffs from local files and multi-hop cascade specifications.
-  - `src/lib/github-pr-bot.ts`:
-    - `formatTeardownBranchName`: Generates standardized git branch names (`premise/teardown-<artifactId>`).
-    - `generateTeardownPrBody`: Produces architecture-grade GitHub PR Markdown with live breach telemetry, target locus, cascaded multi-hop blast radius, unified diff, and interactive Architecture Council Checklist.
-    - `generateGhCliCommand`: Synthesizes ready-to-run GitHub CLI (`gh pr create`) commands.
-    - `createLocalGitTeardownBranch` & `publishGitHubPullRequest`: Creates local git branches, stages teardown changes, and publishes/stages autonomous Pull Requests via GitHub REST API with graceful dry-run fallback.
-  - `src/lib/compiler.ts`:
-    - `compileDecisionArtifact`: Structured LLM extraction (when `OPENAI_API_KEY` is set) with deterministic AST/clause fallback (`parseDocumentDeterministically` & `extractQuantitativePremises`).
-- **High-Density Control Plane UI**:
-  - `src/components/PremiseControlPlane.tsx`: Main 3-pane command center, Top Telemetry Bar with **"Connect Repo"** button (`GitBranch`), **"Connectors"** button (`Sliders`) with active status badge (`X/4`), **"Discovered Premises"** inbox counter badge (`Inbox`), Codebase Scanner, Time-Machine Backtest, inline Premise & Probe configuration editor, and SSE stream controller.
-  - `src/components/ConnectorSettingsModal.tsx`: Production Telemetry & Outbound Dispatch Manager modal with tabs for Prometheus/Thanos, Datadog v2, Slack Block Kit, and PagerDuty Events v2, live connection testing, masked secret visualization, and local SQLite persistence.
-  - `src/components/RepoScannerModal.tsx`: Interactive GitHub Repository Scanner & Discovered Premises modal with repo presets, custom path picker, filter tabs (`Inbox`, `ADRs`, `Manifests`, `Inline`, `All`), architectural prompts, single **"Accept & Spin Up Live Probe"** button, and batch **"Accept All Unmonitored"** action.
-  - `src/components/TimeMachineModal.tsx`: Interactive Time-Machine modal with scenario presets, parameter tuning, playback player (Play/Pause, 1x/2x/4x, scrubber needle), SVG trajectory chart with breach beacon, resilience scorecard, multi-hop cascade blast radius alerts, and 1-click threshold buffer application to SQLite.
-  - `src/components/CodebaseScannerModal.tsx`: Interactive workspace scanner modal with filter tabs and 1-click premise compiler.
-  - `src/components/LocusInspectorPanel.tsx`: Live local codebase file viewer with 1-indexed line numbers, `git apply` unified diff tab, and 1-click **Apply Teardown to File** / **Rollback File to Original** buttons.
-  - `src/components/SparklineChart.tsx`: SVG time-series sparklines with threshold lines and TTI badges.
-  - `src/components/DependencyGraph.tsx`: Interactive DAG with `ANY (OR)` / `ALL (AND)` logic gate switcher and Cross-Artifact Multi-Hop Cascade Graph linker.
-  - `src/components/ChaosDrawer.tsx`: Reality Drift Simulator with continuous sliders, 1-click synthetic drift injectors, and cURL generator.
-  - `src/components/TeardownPane.tsx`: Kill-switch teardown feed, unified diff viewer, Autonomous Sunset Synthesizer card (replacement pattern preview, forward-looking premises, multi-file blast radius diff viewer, and 1-click "Retire & Promote" workflow), Autonomous GitHub PR Bot card, and outbound dispatch controls.
-  - `src/components/ExecutiveBalanceSheetModal.tsx`: Executive Architecture Balance Sheet modal with active monthly drag, daily drag burn rate, total cloud waste eliminated ($/yr), and per-decision drag breakdown table.
-  - `src/components/CompilerModal.tsx`: Interactive ADR/PR/Memo compiler modal.
-- **Horizon E: Architecture Balance Sheet & Autonomous Sunset Synthesizer**:
-  - `src/lib/finops-engine.ts`: Real-time financial drag computations (`calculateArtifactDrag`, `calculateFinOpsLedger`, `formatUsd`), hourly blended rate calculations, and cumulative annual savings tracker.
-  - `src/lib/sunset-synthesizer.ts`: Client-safe replacement architecture synthesizer (`synthesizeReplacementAdr`) formulating next-gen architectural patterns (ADR-015 direct frontier streaming, ADR-016 ephemeral ingestion, MEMO-017 PLG) with forward-looking premises.
-  - `src/lib/sunset-synthesizer-server.ts`: Server-side 1-click `retireAndPromoteArtifact` workflow deprecating old decisions, recording realized savings, applying multi-file teardowns, and booting replacement ADRs with live probes.
-  - `src/lib/locus-inspector.ts`: Multi-file caller blast radius discovery (`discoverCallerBlastRadius`), multi-file patch builder (`buildMultiFileTeardownPatch`), and atomic caller patch applicator (`applyMultiFileTeardownPatch`).
-  - `src/__tests__/finops-and-synthesizer.test.ts`: 10 comprehensive unit and integration tests (54/54 total tests passing across all suites).
-  - `bin/premise-cli.ts --finops`: Standalone CLI with `--finops` flag printing ANSI Architecture Balance Sheet & Inefficiency Drag Ledger table.
-- **Package 1: Command Palette (Cmd+K) & Visual Topology Graph**:
-  - `src/lib/topology-engine.ts`: Topological tiered layout algorithm, multi-hop dependency DAG tier assignment, smooth cubic Bezier path generation, transitive blast radius discovery (`findTransitiveBlastRadius`), and transitive prerequisite resolution (`findTransitivePrerequisites`).
-  - `src/components/VisualTopologyGraph.tsx`: Interactive SVG architecture topology DAG canvas with smooth Bezier links, animated glowing cascade streams (`stroke-dasharray`), status and keyword filtering, zoom/pan controls, hover blast radius highlights, and floating inspector drawer with direct 1-click locus and assertion navigation.
-  - `src/components/CommandPalette.tsx`: Global keyboard command palette triggered via `Cmd+K` / `Ctrl+K` or `/`, featuring categorized search across system actions, decision artifacts, load-bearing quantitative premises, and contextual actions (ANY/ALL gate switching, locus inspection).
-  - `src/components/PremiseControlPlane.tsx`: Top bar quick search `⌘K` trigger, `Topology` toggle `⌘G`, center pane sub-header switcher between Assertion Inspector and Visual Topology Graph, and full keyboard shortcut routing.
-  - `src/__tests__/topology-engine.test.ts` & `src/__tests__/command-palette.test.ts`: 10 comprehensive unit and integration tests (64/64 total tests passing across all 9 test suites).
+| Task | Command |
+| --- | --- |
+| Install | `bun install` |
+| Dev server | `bun run dev` |
+| Tests | `bun test` |
+| Prove tests leave the checkout alone | `scripts/check-test-isolation.sh` |
+| Type-check | `npx tsc --noEmit` |
+| Production build | `bun run build` |
+| CI assertions | `bun ./bin/premise-cli.ts check` (exits `1` when a load-bearing premise is `BROKEN`) |
+| Codebase scan | `bun ./bin/premise-cli.ts scan` |
+| Backtest | `bun ./bin/premise-cli.ts backtest --scenario historical` |
+| Deploy (manual only) | `fly deploy --remote-only --ha=false` (see `docs/DEPLOYMENT.md`) |
+
+CLI flags: `check`, `scan`, `backtest`, `replay`, `--scenario`, `--steps`, `--shock`, `--noise`, `--apply`, `--rollback`, `--strict`, `--simulate-breach`, `--mutate`, `--reset`, `--json`, `--finops`.
+
+### Environment variables
+| Variable | Effect |
+| --- | --- |
+| `PREMISE_DB_PATH` | SQLite file. Defaults to `./premise.db`, except under `bun test`, where it must be set. |
+| `PREMISE_WORKSPACE_ROOT` | Folder that loci, scanners and local git operations resolve against. Defaults to the current directory. |
+| `PREMISE_PUBLIC_DEMO=1` | Public demo mode (on in `fly.toml`). Off by default. |
+| `PREMISE_SANDBOX_DIR` | Where demo sandboxes live. Defaults to `/tmp/premise-sandboxes`. |
+| `PREMISE_EXTRAS=1` | Shows FinOps / Balance Sheet, Time Machine, Topology Graph and PagerDuty. Off by default. |
+| `OPENAI_API_KEY` | Enables LLM extraction in the compiler (ignored in demo mode). |
+| `GITHUB_TOKEN` / `GH_TOKEN` | Enables real teardown PRs (ignored in demo mode). |
+
+## 3. Persistence
+- Zero-config local SQLite in WAL mode via `src/db/index.ts`. That file holds the real schema (`initSchema`); `docs/history/schema-reference.prisma` is reference only.
+- Dual-runtime loader `createSqliteInstance`: `node:sqlite` (`DatabaseSync`) under Node, `bun:sqlite` under Bun. Both are externalized in `next.config.mjs`.
+- `getDb()` returns the visitor's sandbox database when a demo request is running (`src/db/sandbox-context.ts`), otherwise the shared database.
+
+## 4. Public Demo Mode (`PREMISE_PUBLIC_DEMO=1`)
+- `src/middleware.ts` gives each visitor a `premise_sandbox` cookie. `src/lib/demo-sandbox.ts` copies a seeded template into `/tmp/premise-sandboxes/<id>.db`, deletes sandboxes older than 24 hours and caps the total at 500 (oldest first).
+- Every API route is wrapped in `withDemoSandbox`, and `src/app/demo/page.tsx` renders from the visitor's sandbox, so one visitor never sees another's changes.
+- Blocked with HTTP 403 `{ error: "Disabled in public demo" }`: `/api/connectors` POST, `/api/locus` POST, `/api/scanner/scan` against anything but the bundled demo repo.
+- Silently safe: dispatch is always a dry run; no git branches, PRs, OpenAI calls, live Prometheus/Datadog queries or probe fetches to outside URLs; `locus-inspector` refuses real file writes.
+- Connectors show as "demo placeholder"; a banner says changes are private and reset after 24 hours.
+
+## 5. Codebase Map
+### Demo data
+- `examples/demo-repo/`: the fake codebase the demo points at (`packages/`, `services/`, `infra/`, `ops/`, `docs/adr/`). Seed loci read like `examples/demo-repo/packages/llm-gateway/src/semantic-cache.ts:L1-L30`. The Docker image ships it.
+- `src/db/seed-data.ts`: seed artifacts (`ADR-014`, `VENDOR-04` depending on `ADR-014`, `PR #892`, `GTM-Q3`, more), historical telemetry series (`SEED_HISTORICAL_SERIES`), probes and compiler templates.
+
+### Types
+- `src/lib/types.ts`: TypeScript interfaces and Zod schemas (`CompiledArtifactOutputSchema`, `CompiledPremiseSchema`, `LocusInspectionResult`, `DiscoveredCodebasePremise`, connector types).
+
+### Core engines (`src/lib/`)
+- `evaluator.ts`: `evaluatePremiseState` (`LT | LTE | GT | GTE | EQ | NEQ`, `decayWarningMargin`, `VALID` / `DECAYING` / `BROKEN`), `computeArtifactStatus` (`ANY` / `ALL` gates), `computeDriftForecast` (linear-regression time-to-invalidation), `generateRemediationPlan`.
+- `compiler.ts`: `compileDecisionArtifact`, LLM extraction with a deterministic fallback (`parseDocumentDeterministically`, `extractQuantitativePremises`).
+- `probe-engines.ts`: `executeReadOnlySqlMetricQuery` (read-only SQL against the database) and `evaluatePromQlExpression` (PromQL evaluator: `avg_over_time`, `rate`, `quantile_over_time`, label selectors, arithmetic).
+- `telemetry-connectors.ts`: Prometheus/Thanos instant and range queries (Bearer, Basic, tenant headers) and Datadog Metric API v2 with v1 fallback, plus connection tests.
+- `outbound-dispatchers.ts`: Slack Block Kit alerts and PagerDuty Events v2, with dry-run support.
+- `locus-inspector.ts`: reads real files at a `targetLocus`, builds `git apply`-ready diffs, applies and rolls back teardowns (`LocusBackup`), and finds multi-file caller blast radius.
+- `codebase-scanner.ts`: finds inline `@premise` / `@premise-locus` annotations under `packages/ services/ infra/ ops/` at the workspace root and inside `examples/demo-repo/`.
+- `repo-scanner.ts`: scans ADR folders, dependency manifests (`HEAVY_DEPENDENCY_CATALOG`) and inline premises into a deduplicated inbox; converts findings to `CompiledArtifactOutput`.
+- `github-pr-bot.ts`: teardown branch names, PR body markdown, `gh pr create` commands, local branch creation and PR publishing with dry-run fallback.
+- `backtest-engine.ts`: scenario presets, deterministic time-series generator, resilience scoring (HIGH / MODERATE / BRITTLE), threshold buffer advisor, replay with cascade propagation.
+- `finops-engine.ts`: monthly and daily drag and cumulative savings (`calculateFinOpsLedger`, `formatUsd`).
+- `sunset-synthesizer.ts` / `sunset-synthesizer-server.ts`: replacement ADR synthesis and the "Retire & Promote" workflow.
+- `topology-engine.ts`: tiered DAG layout, Bezier links, transitive blast radius and prerequisites.
+- `demo-mode.ts`, `demo-sandbox.ts`, `workspace-root.ts`: flags, sandboxes and the workspace root.
+
+### API routes (`src/app/api/`)
+| Route | Purpose |
+| --- | --- |
+| `GET/POST /api/state` | State hydration, seed reset, acknowledge, `setCombinator`, `setDependencies`, `updatePremiseConfig` |
+| `POST /api/compile` | Compile a document into an artifact |
+| `GET/POST /api/probes/run` | Run probes |
+| `POST /api/webhooks/metric` | Metric ingestion and the chaos simulator |
+| `GET /api/stream` | SSE probe daemon |
+| `GET /api/telemetry/live` | Live JSON telemetry for `HTTP_JSON_PATH` probes |
+| `GET/POST /api/locus` | File inspector, diff preview, apply / rollback |
+| `GET/POST /api/scan` | Inline annotation scanner and import |
+| `GET/POST /api/scanner/scan` | Repo scanner inbox, accept one or all |
+| `GET/POST /api/dispatch` | Outbound dispatch (`GITHUB_PR`, `GITHUB_ISSUE`, `SLACK_WEBHOOK`, `PAGERDUTY_EVENT`) |
+| `GET/POST /api/connectors` | Connector credentials: save, delete, test, masked view |
+| `GET/POST /api/backtest` | Scenario presets and backtests |
+| `GET /api/finops` | FinOps ledger |
+| `POST /api/synthesizer` | Replacement ADR preview and Retire & Promote |
+
+### UI (`src/components/`)
+- `PremiseControlPlane.tsx`: main 3-pane command center (top bar, registry, assertion inspector, teardown pane, modals, SSE controller, keyboard shortcuts, demo banner).
+- `ChaosDrawer.tsx`, `CompilerModal.tsx`, `TeardownPane.tsx`, `LocusInspectorPanel.tsx`, `DependencyGraph.tsx`, `SparklineChart.tsx`, `CodebaseScannerModal.tsx`, `RepoScannerModal.tsx`, `ConnectorSettingsModal.tsx`, `CommandPalette.tsx` (`Cmd+K`), `WalkthroughTour.tsx`, `LandingPage.tsx`.
+- Extras (shown only with `PREMISE_EXTRAS=1`): `ExecutiveBalanceSheetModal.tsx`, `TimeMachineModal.tsx`, `VisualTopologyGraph.tsx` (`Cmd+G`), PagerDuty dispatch.
+
+## 6. Tests & CI
+- `src/__tests__/*.test.ts` cover the evaluator and probes, scanners, locus apply / rollback, cascades, the PR bot, backtests, connectors and dispatchers, FinOps and the synthesizer, topology, the palette, the tour and public demo mode.
+- `bunfig.toml` preloads `src/__tests__/setup/isolate-test-env.ts`: it scrubs `PREMISE_*`, `OPENAI_*`, `GITHUB_*`, `SLACK_*`, `PAGERDUTY_*` env vars, creates a fresh temp folder per run, points HOME, `PREMISE_DB_PATH`, `PREMISE_WORKSPACE_ROOT` and `PREMISE_SANDBOX_DIR` at it, and copies `examples/demo-repo` there. Tests must never write `./premise.db` or files in the checkout.
+- `.github/workflows/premise-ci.yml` runs `bun test`, `scan`, `backtest --scenario historical` and `check`.
+
+## 7. History
+- `docs/history/original-gemini-build-prompt.md`: the original build prompt.
+- `docs/history/schema-reference.prisma`: the old Prisma schema, reference only.
+- `docs/DEPLOYMENT.md`: how deploys work and the ship log.
