@@ -75,6 +75,8 @@ interface PremiseControlPlaneProps {
   compilerTemplates: CompilerTemplate[];
   /** Public demo mode: shows the private-sandbox banner */
   publicDemo?: boolean;
+  /** PREMISE_EXTRAS: FinOps, Time Machine, Topology Graph and PagerDuty */
+  extras?: boolean;
 }
 
 interface InlineEditDraft {
@@ -92,6 +94,7 @@ export function PremiseControlPlane({
   initialInvalidationEvents,
   compilerTemplates,
   publicDemo = false,
+  extras = false,
 }: PremiseControlPlaneProps) {
   const [artifacts, setArtifacts] =
     useState<DecisionArtifactRecord[]>(initialArtifacts);
@@ -149,7 +152,7 @@ export function PremiseControlPlane({
         e.preventDefault();
         setIsCommandPaletteOpen((prev) => !prev);
       }
-      if ((e.metaKey || e.ctrlKey) && (e.key === "g" || e.key === "G")) {
+      if (extras && (e.metaKey || e.ctrlKey) && (e.key === "g" || e.key === "G")) {
         e.preventDefault();
         setCenterViewMode((prev) => (prev === "topology" ? "assertions" : "topology"));
       }
@@ -164,7 +167,7 @@ export function PremiseControlPlane({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [extras]);
 
   // Track Discovered Premises count from GitHub Repo Scanner
   useEffect(() => {
@@ -194,7 +197,9 @@ export function PremiseControlPlane({
       const res = await fetch("/api/connectors");
       const data = await res.json();
       if (data && Array.isArray(data.connectors)) {
-        const count = data.connectors.filter((c: any) => c.isConfigured).length;
+        const count = data.connectors.filter(
+          (c: any) => c.isConfigured && (extras || c.connectorType !== "PAGERDUTY")
+        ).length;
         setConfiguredConnectorsCount(count);
       }
     } catch {
@@ -857,35 +862,37 @@ export function PremiseControlPlane({
             </button>
 
             {/* Horizon E: Architecture Balance Sheet Inefficiency Ticker */}
-            <button
-              data-tour="top-telemetry-controls"
-              type="button"
-              onClick={() => setIsExecutiveBalanceSheetOpen(true)}
-              className="px-3 py-1 flex items-center gap-3 bg-zinc-900/60 hover:bg-zinc-800/80 border-l border-zinc-800 transition-colors text-left"
-              title="Open Architecture Balance Sheet & FinOps Inefficiency Drag"
-            >
-              <div>
-                <div className="text-[9px] font-mono uppercase text-amber-400 flex items-center gap-1">
-                  <TrendingDown className="w-3 h-3" />
-                  <span>FinOps Drag</span>
+            {extras && (
+              <button
+                data-tour="top-telemetry-controls"
+                type="button"
+                onClick={() => setIsExecutiveBalanceSheetOpen(true)}
+                className="px-3 py-1 flex items-center gap-3 bg-zinc-900/60 hover:bg-zinc-800/80 border-l border-zinc-800 transition-colors text-left"
+                title="Open Architecture Balance Sheet & FinOps Inefficiency Drag"
+              >
+                <div>
+                  <div className="text-[9px] font-mono uppercase text-amber-400 flex items-center gap-1">
+                    <TrendingDown className="w-3 h-3" />
+                    <span>FinOps Drag</span>
+                  </div>
+                  <div className="text-xs font-mono font-bold tabular-nums text-amber-300 flex items-center gap-1.5">
+                    <span>{formatUsd(finOpsLedger.totalActiveDragMonthlyUsd)}/mo</span>
+                    <span className="text-[10px] text-zinc-500 font-normal hidden lg:inline">
+                      ({formatUsd(finOpsLedger.totalActiveDragDailyUsd)}/d)
+                    </span>
+                  </div>
                 </div>
-                <div className="text-xs font-mono font-bold tabular-nums text-amber-300 flex items-center gap-1.5">
-                  <span>{formatUsd(finOpsLedger.totalActiveDragMonthlyUsd)}/mo</span>
-                  <span className="text-[10px] text-zinc-500 font-normal hidden lg:inline">
-                    ({formatUsd(finOpsLedger.totalActiveDragDailyUsd)}/d)
-                  </span>
+                <div className="border-l border-zinc-800 pl-2.5">
+                  <div className="text-[9px] font-mono uppercase text-emerald-400 flex items-center gap-1">
+                    <DollarSign className="w-3 h-3" />
+                    <span>Waste Eliminated</span>
+                  </div>
+                  <div className="text-xs font-mono font-bold tabular-nums text-emerald-300">
+                    {formatUsd(finOpsLedger.cumulativeAnnualSavingsUsd)}/yr
+                  </div>
                 </div>
-              </div>
-              <div className="border-l border-zinc-800 pl-2.5">
-                <div className="text-[9px] font-mono uppercase text-emerald-400 flex items-center gap-1">
-                  <DollarSign className="w-3 h-3" />
-                  <span>Waste Eliminated</span>
-                </div>
-                <div className="text-xs font-mono font-bold tabular-nums text-emerald-300">
-                  {formatUsd(finOpsLedger.cumulativeAnnualSavingsUsd)}/yr
-                </div>
-              </div>
-            </button>
+              </button>
+            )}
           </div>
         </div>
 
@@ -927,28 +934,30 @@ export function PremiseControlPlane({
           </button>
 
           {/* Toggle Visual Topology Graph Button */}
-          <button
-            type="button"
-            onClick={() =>
-              setCenterViewMode((prev) => (prev === "topology" ? "assertions" : "topology"))
-            }
-            className={`px-2.5 py-1.5 text-xs font-mono border flex items-center gap-1.5 transition-colors shadow-sm ${
-              centerViewMode === "topology"
-                ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/60 font-semibold"
-                : "bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border-zinc-700"
-            }`}
-            title="Toggle Visual Topology Graph (Cmd+G)"
-          >
-            <Network
-              className={`w-3.5 h-3.5 ${
-                centerViewMode === "topology" ? "text-emerald-400" : "text-zinc-400"
+          {extras && (
+            <button
+              type="button"
+              onClick={() =>
+                setCenterViewMode((prev) => (prev === "topology" ? "assertions" : "topology"))
+              }
+              className={`px-2.5 py-1.5 text-xs font-mono border flex items-center gap-1.5 transition-colors shadow-sm ${
+                centerViewMode === "topology"
+                  ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/60 font-semibold"
+                  : "bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border-zinc-700"
               }`}
-            />
-            <span className="hidden sm:inline">Topology</span>
-            <kbd className="hidden md:inline px-1 py-0.2 text-[9px] bg-zinc-800 border border-zinc-700 text-zinc-400 rounded-sm">
-              ⌘G
-            </kbd>
-          </button>
+              title="Toggle Visual Topology Graph (Cmd+G)"
+            >
+              <Network
+                className={`w-3.5 h-3.5 ${
+                  centerViewMode === "topology" ? "text-emerald-400" : "text-zinc-400"
+                }`}
+              />
+              <span className="hidden sm:inline">Topology</span>
+              <kbd className="hidden md:inline px-1 py-0.2 text-[9px] bg-zinc-800 border border-zinc-700 text-zinc-400 rounded-sm">
+                ⌘G
+              </kbd>
+            </button>
+          )}
 
           {/* Executable CI/CD CLI Runner Quick-Copy Button */}
           <button
@@ -1021,7 +1030,7 @@ export function PremiseControlPlane({
             <span>Connectors</span>
             {configuredConnectorsCount > 0 ? (
               <span className="ml-1 px-1.5 py-0.2 text-[10px] bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold rounded-sm">
-                {configuredConnectorsCount}/4
+                {configuredConnectorsCount}/{extras ? 4 : 3}
               </span>
             ) : (
               <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
@@ -1029,20 +1038,22 @@ export function PremiseControlPlane({
           </button>
 
           {/* Horizon E: Executive Architecture Balance Sheet Button */}
-          <button
-            type="button"
-            onClick={() => setIsExecutiveBalanceSheetOpen(true)}
-            className="px-3 py-1.5 text-xs font-mono font-medium bg-zinc-900 hover:bg-zinc-800 text-amber-200 border border-amber-500/50 flex items-center gap-1.5 transition-colors shadow-sm"
-            title="Open Executive Architecture Balance Sheet & Inefficiency Drag Ledger (Horizon E)"
-          >
-            <DollarSign className="w-3.5 h-3.5 text-amber-400" />
-            <span>Balance Sheet</span>
-            {finOpsLedger.invalidatedDecisionsCount > 0 && (
-              <span className="ml-1 px-1.5 py-0.2 text-[10px] bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold rounded-sm">
-                {finOpsLedger.invalidatedDecisionsCount} Breached
-              </span>
-            )}
-          </button>
+          {extras && (
+            <button
+              type="button"
+              onClick={() => setIsExecutiveBalanceSheetOpen(true)}
+              className="px-3 py-1.5 text-xs font-mono font-medium bg-zinc-900 hover:bg-zinc-800 text-amber-200 border border-amber-500/50 flex items-center gap-1.5 transition-colors shadow-sm"
+              title="Open Executive Architecture Balance Sheet & Inefficiency Drag Ledger (Horizon E)"
+            >
+              <DollarSign className="w-3.5 h-3.5 text-amber-400" />
+              <span>Balance Sheet</span>
+              {finOpsLedger.invalidatedDecisionsCount > 0 && (
+                <span className="ml-1 px-1.5 py-0.2 text-[10px] bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold rounded-sm">
+                  {finOpsLedger.invalidatedDecisionsCount} Breached
+                </span>
+              )}
+            </button>
+          )}
 
           {/* Codebase Assumption Scanner Button */}
           <button
@@ -1078,16 +1089,18 @@ export function PremiseControlPlane({
             <span>Run All Probes Now</span>
           </button>
 
-          <button
-            data-tour="top-telemetry-controls"
-            type="button"
-            onClick={() => setIsTimeMachineOpen(true)}
-            className="px-3 py-1.5 text-xs font-mono font-semibold bg-purple-950/80 hover:bg-purple-900 text-purple-200 border border-purple-500/50 flex items-center gap-1.5 transition-colors shadow-sm"
-            title="Historical Drift Backtesting & Scenario Replay Engine (Horizon C)"
-          >
-            <History className="w-3.5 h-3.5 text-purple-400" />
-            <span>Time-Machine Backtest</span>
-          </button>
+          {extras && (
+            <button
+              data-tour="top-telemetry-controls"
+              type="button"
+              onClick={() => setIsTimeMachineOpen(true)}
+              className="px-3 py-1.5 text-xs font-mono font-semibold bg-purple-950/80 hover:bg-purple-900 text-purple-200 border border-purple-500/50 flex items-center gap-1.5 transition-colors shadow-sm"
+              title="Historical Drift Backtesting & Scenario Replay Engine (Horizon C)"
+            >
+              <History className="w-3.5 h-3.5 text-purple-400" />
+              <span>Time-Machine Backtest</span>
+            </button>
+          )}
 
           <button
             type="button"
@@ -1305,40 +1318,42 @@ export function PremiseControlPlane({
 
         {/* CENTER PANE: The Dependency & Assertion Graph (5 cols) */}
         <main className="col-span-12 md:col-span-5 bg-zinc-950 flex flex-col overflow-hidden min-h-0">
-          {/* Sub-header view switcher */}
-          <div className="shrink-0 border-b border-zinc-800 bg-zinc-950 px-3.5 py-1.5 flex items-center justify-between text-xs font-mono z-10">
-            <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 p-0.5">
-              <button
-                type="button"
-                onClick={() => setCenterViewMode("assertions")}
-                className={`px-2.5 py-1 text-[11px] flex items-center gap-1.5 transition-colors ${
-                  centerViewMode === "assertions"
-                    ? "bg-zinc-800 text-zinc-100 font-bold border border-zinc-700"
-                    : "text-zinc-400 hover:text-zinc-200"
-                }`}
-              >
-                <Activity className="w-3.5 h-3.5 text-sky-400" />
-                <span>Assertion Inspector</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setCenterViewMode("topology")}
-                className={`px-2.5 py-1 text-[11px] flex items-center gap-1.5 transition-colors ${
-                  centerViewMode === "topology"
-                    ? "bg-emerald-950 text-emerald-300 font-bold border border-emerald-500/50"
-                    : "text-zinc-400 hover:text-zinc-200"
-                }`}
-              >
-                <Network className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Visual Topology Graph</span>
-              </button>
+          {/* Sub-header view switcher (topology is an extra) */}
+          {extras && (
+            <div className="shrink-0 border-b border-zinc-800 bg-zinc-950 px-3.5 py-1.5 flex items-center justify-between text-xs font-mono z-10">
+              <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setCenterViewMode("assertions")}
+                  className={`px-2.5 py-1 text-[11px] flex items-center gap-1.5 transition-colors ${
+                    centerViewMode === "assertions"
+                      ? "bg-zinc-800 text-zinc-100 font-bold border border-zinc-700"
+                      : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  <Activity className="w-3.5 h-3.5 text-sky-400" />
+                  <span>Assertion Inspector</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCenterViewMode("topology")}
+                  className={`px-2.5 py-1 text-[11px] flex items-center gap-1.5 transition-colors ${
+                    centerViewMode === "topology"
+                      ? "bg-emerald-950 text-emerald-300 font-bold border border-emerald-500/50"
+                      : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  <Network className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Visual Topology Graph</span>
+                </button>
+              </div>
+              <span className="text-[10px] text-zinc-500 hidden sm:inline">
+                Press <kbd className="px-1 py-0.2 bg-zinc-900 border border-zinc-800 text-zinc-400">⌘G</kbd> to toggle
+              </span>
             </div>
-            <span className="text-[10px] text-zinc-500 hidden sm:inline">
-              Press <kbd className="px-1 py-0.2 bg-zinc-900 border border-zinc-800 text-zinc-400">⌘G</kbd> to toggle
-            </span>
-          </div>
+          )}
 
-          {centerViewMode === "topology" ? (
+          {extras && centerViewMode === "topology" ? (
             <div className="flex-1 overflow-hidden">
               <VisualTopologyGraph
                 artifacts={artifacts}
@@ -1940,6 +1955,7 @@ export function PremiseControlPlane({
         {/* RIGHT PANE: Invalidation & Teardown Feed (4 cols) */}
         <div className="col-span-12 md:col-span-4 overflow-hidden min-h-0">
           <TeardownPane
+            extras={extras}
             selectedArtifact={selectedArtifact}
             allInvalidationEvents={invalidationEvents}
             onAcknowledgeEvent={handleAcknowledgeEvent}
@@ -2024,6 +2040,7 @@ export function PremiseControlPlane({
 
       {/* Horizon D: Production Telemetry & Outbound Dispatch Manager */}
       <ConnectorSettingsModal
+        extras={extras}
         isOpen={isConnectorSettingsOpen}
         onClose={() => setIsConnectorSettingsOpen(false)}
         onSaved={() => {
@@ -2045,6 +2062,7 @@ export function PremiseControlPlane({
 
       {/* Package 1: Command Palette (Cmd+K) */}
       <CommandPalette
+        extras={extras}
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
         artifacts={artifacts}
@@ -2086,6 +2104,7 @@ export function PremiseControlPlane({
 
       {/* Interactive Guided Walkthrough Tour */}
       <WalkthroughTour
+        extras={extras}
         isOpen={isTourOpen}
         onClose={() => setIsTourOpen(false)}
         onSimulateBreach={handleSimulateBreachForSelected}

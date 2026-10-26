@@ -6,7 +6,7 @@ import {
 } from "@/db";
 import { COMPILER_TEMPLATES } from "@/db/seed-data";
 import { PremiseControlPlane } from "@/components/PremiseControlPlane";
-import { SANDBOX_COOKIE, isPublicDemo } from "@/lib/demo-mode";
+import { SANDBOX_COOKIE, isExtrasEnabled, isPublicDemo } from "@/lib/demo-mode";
 import { runInVisitorSandbox } from "@/lib/demo-sandbox";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +37,7 @@ export default async function DemoPage() {
       initialInvalidationEvents={invalidationEvents}
       compilerTemplates={compilerTemplates}
       publicDemo={publicDemo}
+      extras={isExtrasEnabled()}
     />
   );
 }

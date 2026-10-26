@@ -36,7 +36,12 @@ import {
   PremiseRecord,
 } from "@/lib/types";
 
+// Commands for features hidden unless PREMISE_EXTRAS=1
+const EXTRAS_COMMAND_IDS = ["cmd-topology-view", "cmd-time-machine", "cmd-finops"];
+
 export interface CommandPaletteProps {
+  /** PREMISE_EXTRAS: shows Topology, Time Machine and Balance Sheet commands */
+  extras?: boolean;
   isOpen: boolean;
   onClose: () => void;
   artifacts: DecisionArtifactRecord[];
@@ -101,6 +106,7 @@ export function CommandPalette({
   onChangeCombinator,
   onOpenLocusInspector,
   onStartTour,
+  extras = false,
 }: CommandPaletteProps) {
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<PaletteCategory>("all");
@@ -459,8 +465,11 @@ export function CommandPalette({
       }
     }
 
-    return items;
+    return extras
+      ? items
+      : items.filter((item) => !EXTRAS_COMMAND_IDS.includes(item.id));
   }, [
+    extras,
     artifacts,
     selectedArtifact,
     selectedArtifactId,

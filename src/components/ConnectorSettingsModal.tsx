@@ -38,12 +38,15 @@ interface ConnectorSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSaved?: () => void;
+  /** PREMISE_EXTRAS: shows the PagerDuty connector tab */
+  extras?: boolean;
 }
 
 export function ConnectorSettingsModal({
   isOpen,
   onClose,
   onSaved,
+  extras = false,
 }: ConnectorSettingsModalProps) {
   const [activeTab, setActiveTab] = useState<ConnectorType>("PROMETHEUS");
   const [connectors, setConnectors] = useState<ConnectorMaskedSetting[]>([]);
@@ -358,7 +361,9 @@ export function ConnectorSettingsModal({
               label: "PagerDuty Events v2",
               icon: AlertOctagon,
             },
-          ].map((tab) => {
+          ]
+            .filter((tab) => extras || tab.id !== "PAGERDUTY")
+            .map((tab) => {
             const tabSetting = connectors.find((c) => c.connectorType === tab.id);
             const isConfigured = tabSetting?.isConfigured;
             const Icon = tab.icon;

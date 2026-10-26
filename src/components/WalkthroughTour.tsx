@@ -40,13 +40,19 @@ export interface WalkthroughTourProps {
   onClose: () => void;
   onSimulateBreach?: () => void;
   onSelectArtifact?: (artifactId: string) => void;
+  /** PREMISE_EXTRAS: includes the FinOps & Time-Machine step */
+  extras?: boolean;
 }
+
+// Tour steps that point at features hidden unless PREMISE_EXTRAS=1
+const EXTRAS_TOUR_STEP_IDS = ["finops"];
 
 export function WalkthroughTour({
   isOpen,
   onClose,
   onSimulateBreach,
   onSelectArtifact,
+  extras = false,
 }: WalkthroughTourProps) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
@@ -56,7 +62,7 @@ export function WalkthroughTour({
   const [actionTriggered, setActionTriggered] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
-  const steps: TourStep[] = [
+  const allSteps: TourStep[] = [
     {
       id: "registry",
       targetSelector: '[data-tour="decision-registry"]',
@@ -145,6 +151,9 @@ export function WalkthroughTour({
       preferredPlacement: "bottom",
     },
   ];
+  const steps = extras
+    ? allSteps
+    : allSteps.filter((s) => !EXTRAS_TOUR_STEP_IDS.includes(s.id));
 
   const currentStep = steps[currentStepIndex] || steps[0];
 

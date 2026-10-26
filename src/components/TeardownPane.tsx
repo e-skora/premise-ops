@@ -55,6 +55,8 @@ interface TeardownPaneProps {
   onSimulateBreachForSelected: () => Promise<void>;
   onSelectArtifact: (artifactId: string) => void;
   onRetireAndPromote?: (artifactId: string) => Promise<void>;
+  /** PREMISE_EXTRAS: shows the PagerDuty dispatch button */
+  extras?: boolean;
 }
 
 export function TeardownPane({
@@ -65,6 +67,7 @@ export function TeardownPane({
   onSimulateBreachForSelected,
   onSelectArtifact,
   onRetireAndPromote,
+  extras = false,
 }: TeardownPaneProps) {
   const [scope, setScope] = useState<"selected" | "global">("selected");
   const [copiedEventId, setCopiedEventId] = useState<string | null>(null);
@@ -732,7 +735,9 @@ ${ev.remediationPlan}
                     </div>
 
                     {/* Secondary Channel Triggers */}
-                    <div className="grid grid-cols-2 gap-1.5 pt-1">
+                    <div
+                      className={`grid ${extras ? "grid-cols-2" : "grid-cols-1"} gap-1.5 pt-1`}
+                    >
                       <button
                         type="button"
                         onClick={() =>
@@ -749,21 +754,23 @@ ${ev.remediationPlan}
                         <span>Slack Alert</span>
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleDispatchClick(ev.id, "PAGERDUTY_EVENT")
-                        }
-                        disabled={dispatchingKey === `${ev.id}:PAGERDUTY_EVENT`}
-                        className="py-1.5 px-2 text-[10px] font-mono font-semibold bg-zinc-900 hover:bg-zinc-800 text-amber-300 border border-amber-500/40 flex items-center justify-center gap-1 transition-colors"
-                      >
-                        {dispatchingKey === `${ev.id}:PAGERDUTY_EVENT` ? (
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                        ) : (
-                          <BellRing className="w-3 h-3" />
-                        )}
-                        <span>PagerDuty Alert</span>
-                      </button>
+                      {extras && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleDispatchClick(ev.id, "PAGERDUTY_EVENT")
+                          }
+                          disabled={dispatchingKey === `${ev.id}:PAGERDUTY_EVENT`}
+                          className="py-1.5 px-2 text-[10px] font-mono font-semibold bg-zinc-900 hover:bg-zinc-800 text-amber-300 border border-amber-500/40 flex items-center justify-center gap-1 transition-colors"
+                        >
+                          {dispatchingKey === `${ev.id}:PAGERDUTY_EVENT` ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <BellRing className="w-3 h-3" />
+                          )}
+                          <span>PagerDuty Alert</span>
+                        </button>
+                      )}
                     </div>
                   </div>
 

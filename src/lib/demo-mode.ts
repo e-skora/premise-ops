@@ -10,6 +10,11 @@ export function isPublicDemo(): boolean {
   return process.env.PREMISE_PUBLIC_DEMO === "1";
 }
 
+/** PREMISE_EXTRAS=1: show FinOps, Time Machine, Topology Graph and PagerDuty. */
+export function isExtrasEnabled(): boolean {
+  return process.env.PREMISE_EXTRAS === "1";
+}
+
 /** Repo scanner targets that resolve to the bundled demo repo. */
 export const DEMO_REPO_SCAN_TARGETS = [
   "github.com/company/core-monorepo",
