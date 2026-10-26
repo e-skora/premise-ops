@@ -9,7 +9,18 @@ import {
 import { parseTargetLocus } from "./locus-inspector";
 import { resolveWorkspaceRoot } from "./workspace-root";
 
-const SCAN_DIRECTORIES = ["packages", "services", "infra", "ops"];
+// Scanned under the workspace root and under the bundled demo repo
+const DEMO_REPO_DIR = "examples/demo-repo";
+const SCAN_DIRECTORIES = [
+  "packages",
+  "services",
+  "infra",
+  "ops",
+  `${DEMO_REPO_DIR}/packages`,
+  `${DEMO_REPO_DIR}/services`,
+  `${DEMO_REPO_DIR}/infra`,
+  `${DEMO_REPO_DIR}/ops`,
+];
 const SCAN_EXTENSIONS = new Set([
   ".ts",
   ".tsx",
@@ -61,7 +72,8 @@ const SYMBOL_TO_OPERATOR: Record<string, Operator> = {
 };
 
 /**
- * Walks workspace directories (`packages/`, `services/`, `infra/`, `ops/`)
+ * Walks workspace directories (`packages/`, `services/`, `infra/`, `ops/`, at the
+ * root and inside `examples/demo-repo/`)
  * and extracts inline `@premise` and `@premise-locus` assumptions from source files.
  */
 export function scanWorkspaceForPremises(

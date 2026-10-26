@@ -24,8 +24,8 @@ describe("GitHub Repository Scanner & Discovered Premises Inbox (Premise Engine 
     const { discovered, adrFilesScanned } = scanAdrFolder(resolveWorkspaceRoot(), existing);
 
     expect(adrFilesScanned.length).toBeGreaterThanOrEqual(2);
-    expect(adrFilesScanned).toContain("docs/adr/ADR-005-pinecone-vector-index.md");
-    expect(adrFilesScanned).toContain("docs/adr/ADR-008-tesseract-ocr-pipeline.md");
+    expect(adrFilesScanned).toContain("examples/demo-repo/docs/adr/ADR-005-pinecone-vector-index.md");
+    expect(adrFilesScanned).toContain("examples/demo-repo/docs/adr/ADR-008-tesseract-ocr-pipeline.md");
 
     // ADR-005 Pinecone checks
     const pineconeItems = discovered.filter((d) =>
@@ -68,8 +68,8 @@ describe("GitHub Repository Scanner & Discovered Premises Inbox (Premise Engine 
     );
 
     expect(manifestsScanned.length).toBeGreaterThanOrEqual(2);
-    expect(manifestsScanned).toContain("packages/llm-gateway/package.json");
-    expect(manifestsScanned).toContain("services/ingest-worker/package.json");
+    expect(manifestsScanned).toContain("examples/demo-repo/packages/llm-gateway/package.json");
+    expect(manifestsScanned).toContain("examples/demo-repo/services/ingest-worker/package.json");
 
     // Check detected dependencies
     const pkgNames = discovered.map((d) => d.detectedPackage?.name).filter(Boolean);

@@ -18,7 +18,7 @@ export interface ParsedLocusSpec {
 
 /**
  * Parses a targetLocus string like:
- * - "packages/llm-gateway/src/semantic-cache.ts:L1-L34"
+ * - "examples/demo-repo/packages/llm-gateway/src/semantic-cache.ts:L1-L34"
  * - "src/services/router.ts:L42-110"
  * - "services/ingest-worker/queue.ts:10-28"
  * - "ops/growth/paid-acquisition-budget.yaml"
@@ -721,7 +721,18 @@ export function discoverCallerBlastRadius(targetLocus: string): {
   }
 
   const symbols = extractExportedSymbols(targetContent);
-  const searchRoots = ["packages", "services", "src", "apps", "infra", "ops"];
+  const searchRoots = [
+    "packages",
+    "services",
+    "src",
+    "apps",
+    "infra",
+    "ops",
+    "examples/demo-repo/packages",
+    "examples/demo-repo/services",
+    "examples/demo-repo/infra",
+    "examples/demo-repo/ops",
+  ];
   const allWorkspaceFiles: string[] = [];
 
   for (const root of searchRoots) {

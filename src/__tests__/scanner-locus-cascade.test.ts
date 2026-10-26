@@ -20,20 +20,20 @@ import {
 describe("Codebase Scanner, Locus Inspector & Multi-Hop Cascade Engine", () => {
   test("parseTargetLocus and inspectLocalLocus read real repository files", () => {
     const parsed = parseTargetLocus(
-      "packages/llm-gateway/src/semantic-cache.ts:L1-L30"
+      "examples/demo-repo/packages/llm-gateway/src/semantic-cache.ts:L1-L30"
     );
-    expect(parsed.filePath).toBe("packages/llm-gateway/src/semantic-cache.ts");
+    expect(parsed.filePath).toBe("examples/demo-repo/packages/llm-gateway/src/semantic-cache.ts");
     expect(parsed.startLine).toBe(1);
     expect(parsed.endLine).toBe(30);
 
     const inspection = inspectLocalLocus(
-      "packages/llm-gateway/src/semantic-cache.ts:L1-L30"
+      "examples/demo-repo/packages/llm-gateway/src/semantic-cache.ts:L1-L30"
     );
     expect(inspection.exists).toBe(true);
     expect(inspection.lines.length).toBe(30);
 
     const { unifiedDiff } = buildRealGitApplyPatch({
-      targetLocus: "packages/llm-gateway/src/semantic-cache.ts:L1-L30",
+      targetLocus: "examples/demo-repo/packages/llm-gateway/src/semantic-cache.ts:L1-L30",
       artifactTitle: "ADR-014: Custom Semantic Caching Microservice",
       variableName: "upstream_llm_input_cost_usd",
       operator: "GT",
@@ -43,7 +43,7 @@ describe("Codebase Scanner, Locus Inspector & Multi-Hop Cascade Engine", () => {
       blastRadius: "Delete 4,200 LOC Redis semantic cache",
     });
     expect(unifiedDiff).toContain(
-      "diff --git a/packages/llm-gateway/src/semantic-cache.ts b/packages/llm-gateway/src/semantic-cache.ts"
+      "diff --git a/examples/demo-repo/packages/llm-gateway/src/semantic-cache.ts b/examples/demo-repo/packages/llm-gateway/src/semantic-cache.ts"
     );
     expect(unifiedDiff).toContain("@@ -1,30 +1,");
   });
@@ -93,7 +93,7 @@ describe("Codebase Scanner, Locus Inspector & Multi-Hop Cascade Engine", () => {
 
     // Apply live teardown patch to semantic-cache.ts and verify rollback
     const patchRes = applyLocusPatchAndRecordBackup({
-      targetLocus: "packages/llm-gateway/src/semantic-cache.ts:L1-L30",
+      targetLocus: "examples/demo-repo/packages/llm-gateway/src/semantic-cache.ts:L1-L30",
       artifactId: "art-adr-014",
       artifactTitle: "ADR-014: Custom Semantic Caching Microservice",
       variableName: "upstream_llm_input_cost_usd",
@@ -107,7 +107,7 @@ describe("Codebase Scanner, Locus Inspector & Multi-Hop Cascade Engine", () => {
     expect(patchRes.inspection.isPatched).toBe(true);
 
     const rollbackRes = rollbackLocusPatchFromBackup(
-      "packages/llm-gateway/src/semantic-cache.ts:L1-L30"
+      "examples/demo-repo/packages/llm-gateway/src/semantic-cache.ts:L1-L30"
     );
     expect(rollbackRes.ok).toBe(true);
     expect(rollbackRes.inspection.isPatched).toBe(false);

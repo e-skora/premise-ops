@@ -117,7 +117,7 @@ export function WalkthroughTour({
       tag: "STEP 5 // CODEBASE GARBAGE COLLECTION",
       title: "Workspace Locus & Unified Teardown Diffs",
       description:
-        "Premise connects directly to real codebase files on disk (e.g. packages/llm-gateway/src/semantic-cache.ts) and synthesizes git-apply ready unified teardown diffs to cleanly rip out the obsolete abstraction with 1-click apply or rollback.",
+        "Premise connects directly to real codebase files on disk (e.g. examples/demo-repo/packages/llm-gateway/src/semantic-cache.ts) and synthesizes git-apply ready unified teardown diffs to cleanly rip out the obsolete abstraction with 1-click apply or rollback.",
       insight:
         "Automated garbage collection for dead code: Premise doesn't just alert—it authors the deletion diff.",
       preferredPlacement: "top",

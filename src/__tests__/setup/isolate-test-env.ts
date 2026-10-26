@@ -38,7 +38,7 @@ const scratchRoot = fs.mkdtempSync(path.join(os.tmpdir(), "premise-test-"));
 const workspaceRoot = path.join(scratchRoot, "workspace");
 const homeDir = path.join(scratchRoot, "home");
 
-const FIXTURE_PATHS = ["packages", "services", "infra", "ops", "docs/adr"];
+const FIXTURE_PATHS = ["examples/demo-repo"];
 
 fs.mkdirSync(workspaceRoot, { recursive: true });
 fs.mkdirSync(homeDir, { recursive: true });

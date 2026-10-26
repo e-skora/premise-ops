@@ -278,7 +278,7 @@ export function CommandPalette({
     items.push({
       id: "cmd-codebase-scanner",
       title: "Scan Local Codebase for @premise Loci",
-      subtitle: "Walk packages/ and services/ for inline architectural annotations",
+      subtitle: "Walk examples/demo-repo for inline architectural annotations",
       category: "commands",
       badge: "CODEBASE",
       badgeStyle: "bg-zinc-800 text-zinc-300 border-zinc-700",

@@ -18,7 +18,7 @@ async function handleGet(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const targetLocus =
     searchParams.get("targetLocus") ||
-    "packages/llm-gateway/src/semantic-cache.ts:L1-L34";
+    "examples/demo-repo/packages/llm-gateway/src/semantic-cache.ts:L1-L34";
   const artifactTitle =
     searchParams.get("artifactTitle") || "Decision Artifact";
   const variableName =
@@ -76,7 +76,7 @@ async function handlePost(req: NextRequest) {
     };
 
     const targetLocus =
-      body.targetLocus || "packages/llm-gateway/src/semantic-cache.ts:L1-L30";
+      body.targetLocus || "examples/demo-repo/packages/llm-gateway/src/semantic-cache.ts:L1-L30";
     const artifactTitle = body.artifactTitle || "Decision Artifact";
     const variableName = body.variableName || "monitored_metric";
     const operator = (body.operator || "GT") as Operator;

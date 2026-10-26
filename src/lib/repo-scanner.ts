@@ -249,6 +249,7 @@ export function scanAdrFolder(
     path.join(workspaceRoot, "docs", "adr"),
     path.join(workspaceRoot, "decisions"),
     path.join(workspaceRoot, "docs", "decisions"),
+    path.join(workspaceRoot, "examples", "demo-repo", "docs", "adr"),
   ];
 
   const adrFilesScanned: string[] = [];

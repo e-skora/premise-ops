@@ -41,7 +41,7 @@ describe("Horizon D: Production Telemetry Connectors & Live Outbound Dispatch", 
     breakingValue: "0.80",
     thresholdValue: "2.50",
     remediationPlan:
-      "Decommission semantic caching Redis cluster and rip out caching layer at packages/llm-gateway/src/semantic-cache.ts",
+      "Decommission semantic caching Redis cluster and rip out caching layer at examples/demo-repo/packages/llm-gateway/src/semantic-cache.ts",
     acknowledged: false,
     triggeredAt: "2026-10-23T01:40:00.000Z",
     premiseClaim: "Upstream OpenAI API pricing remains >= $2.50 per 1M tokens",
@@ -49,7 +49,7 @@ describe("Horizon D: Production Telemetry Connectors & Live Outbound Dispatch", 
     operator: "GT",
     unit: "USD / 1M tokens",
     artifactTitle: "ADR-014: Semantic Caching Gateway for LLM Queries",
-    targetLocus: "packages/llm-gateway/src/semantic-cache.ts:L1-L30",
+    targetLocus: "examples/demo-repo/packages/llm-gateway/src/semantic-cache.ts:L1-L30",
   };
 
   // ==========================================================================

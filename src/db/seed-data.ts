@@ -14,7 +14,7 @@ export const INITIAL_SEED_ARTIFACTS: DecisionArtifactRecord[] = [
     id: "art-adr-014",
     title: "ADR-014: Custom Semantic Caching Microservice",
     type: "ADR",
-    targetLocus: "packages/llm-gateway/src/semantic-cache.ts:L1-L30",
+    targetLocus: "examples/demo-repo/packages/llm-gateway/src/semantic-cache.ts:L1-L30",
     blastRadius:
       "4,200 LOC Redis vector cache + $600/mo Redis cluster can be deleted if upstream models become cheap and fast enough.",
     logicCombinator: "ANY",
@@ -28,7 +28,7 @@ export const INITIAL_SEED_ARTIFACTS: DecisionArtifactRecord[] = [
     createdAt: "2026-06-14T10:15:00.000Z",
     lastEvaluatedAt: "2026-10-19T09:30:00.000Z",
     rawContent: `# ADR-014: Custom Semantic Caching Microservice
-**Status:** Accepted | **Owner:** Core AI Platform | **Locus:** \`packages/llm-gateway/src/semantic-cache.ts:L1-L30\`
+**Status:** Accepted | **Owner:** Core AI Platform | **Locus:** \`examples/demo-repo/packages/llm-gateway/src/semantic-cache.ts:L1-L30\`
 
 ## Context & Problem Statement
 Our inference gateway processes 84M daily prompt tokens across customer support and code-analysis workflows. Direct passthrough to frontier upstream models introduces prohibitive unit economics and tail latency.
@@ -39,7 +39,7 @@ We justify maintaining our custom HNSW Redis semantic vector cache only while th
 2. **Tail Latency Envelope:** P95 upstream time-to-first-token > 650ms during peak North America traffic windows.
 
 ## Decision & Architecture
-We deploy a dedicated 3-node Redis Stack cluster (\`redis-semantic-prod-01\`) running cosine-similarity embedding lookup (\`threshold >= 0.94\`) in \`packages/llm-gateway/src/semantic-cache.ts:L1-L30\`.
+We deploy a dedicated 3-node Redis Stack cluster (\`redis-semantic-prod-01\`) running cosine-similarity embedding lookup (\`threshold >= 0.94\`) in \`examples/demo-repo/packages/llm-gateway/src/semantic-cache.ts:L1-L30\`.
 
 ## Blast Radius & Sunset Criteria
 4,200 LOC Redis vector cache + $600/mo Redis cluster can be deleted if upstream models become cheap and fast enough. Once either load-bearing premise is invalidated by upstream provider price cuts or inference speedups, decommission the Redis vector cluster and cascade-terminate downstream \`VENDOR-04: Redis Enterprise Annual FinOps Commit\`.`,
@@ -129,7 +129,7 @@ We deploy a dedicated 3-node Redis Stack cluster (\`redis-semantic-prod-01\`) ru
     id: "art-vendor-redis",
     title: "VENDOR-04: Redis Enterprise Annual FinOps Commit ($7,200/yr)",
     type: "VENDOR_CONTRACT",
-    targetLocus: "infra/finops/redis-enterprise-commit.yaml:L1-L20",
+    targetLocus: "examples/demo-repo/infra/finops/redis-enterprise-commit.yaml:L1-L20",
     blastRadius:
       "Terminate $7,200/yr ($600/mo) Redis Enterprise 3-node r7g.xlarge committed-use contract and disable auto-renewal before 30-day lock-in window.",
     logicCombinator: "ANY",
@@ -143,7 +143,7 @@ We deploy a dedicated 3-node Redis Stack cluster (\`redis-semantic-prod-01\`) ru
     createdAt: "2026-06-20T11:00:00.000Z",
     lastEvaluatedAt: "2026-10-19T09:30:00.000Z",
     rawContent: `# VENDOR-04: Redis Enterprise Annual FinOps Commit ($7,200/yr)
-**Owner:** Cloud FinOps & Core AI Platform | **Upstream Dependency:** \`ADR-014\` | **Locus:** \`infra/finops/redis-enterprise-commit.yaml:L1-L20\`
+**Owner:** Cloud FinOps & Core AI Platform | **Upstream Dependency:** \`ADR-014\` | **Locus:** \`examples/demo-repo/infra/finops/redis-enterprise-commit.yaml:L1-L20\`
 
 ## Contract Scope & Upstream Dependency
 This 12-month Redis Enterprise committed-use reservation (\`redis-semantic-prod-01\`) exists solely to back \`ADR-014: Custom Semantic Caching Microservice\`. If \`ADR-014\` is invalidated by upstream model price/latency improvements, this contract is automatically obsolete via multi-hop cascade.
@@ -152,7 +152,7 @@ This 12-month Redis Enterprise committed-use reservation (\`redis-semantic-prod-
 1. **Cluster Memory Utilization:** Redis vector index memory utilization >= 60% across the 3x r7g.xlarge node reservation.
 
 ## Blast Radius & FinOps Teardown
-Terminate $7,200/yr ($600/mo) Redis Enterprise 3-node r7g.xlarge committed-use contract and disable auto-renewal in \`infra/finops/redis-enterprise-commit.yaml:L1-L20\`.`,
+Terminate $7,200/yr ($600/mo) Redis Enterprise 3-node r7g.xlarge committed-use contract and disable auto-renewal in \`examples/demo-repo/infra/finops/redis-enterprise-commit.yaml:L1-L20\`.`,
     premises: [
       {
         id: "prem-vendor-redis-util",
@@ -202,7 +202,7 @@ Terminate $7,200/yr ($600/mo) Redis Enterprise 3-node r7g.xlarge committed-use c
     id: "art-pr-892",
     title: "PR #892: Multi-Provider Failover & Retry Queue",
     type: "GITHUB_PR",
-    targetLocus: "services/ingest-worker/queue.ts:L1-L30",
+    targetLocus: "examples/demo-repo/services/ingest-worker/queue.ts:L1-L30",
     blastRadius:
       "1,850 LOC BullMQ dead-letter failover worker + $420/mo secondary webhook relay cluster can be removed once primary provider exceeds 99.9% 30-day SLA.",
     logicCombinator: "ANY",
@@ -216,10 +216,10 @@ Terminate $7,200/yr ($600/mo) Redis Enterprise 3-node r7g.xlarge committed-use c
     createdAt: "2026-07-22T16:40:00.000Z",
     lastEvaluatedAt: "2026-10-19T09:30:00.000Z",
     rawContent: `# PR #892: Multi-Provider Failover & Retry Queue
-**Author:** \`@sre-platform\` | **Merged:** \`main\` | **Locus:** \`services/ingest-worker/queue.ts:L1-L30\`
+**Author:** \`@sre-platform\` | **Merged:** \`main\` | **Locus:** \`examples/demo-repo/services/ingest-worker/queue.ts:L1-L30\`
 
 ## Summary of Changes
-Introduces a dual-write outbox table and a BullMQ dead-letter retry state machine in \`services/ingest-worker/queue.ts:L1-L30\` that automatically fails over outbound billing and lifecycle events to a secondary relay cluster.
+Introduces a dual-write outbox table and a BullMQ dead-letter retry state machine in \`examples/demo-repo/services/ingest-worker/queue.ts:L1-L30\` that automatically fails over outbound billing and lifecycle events to a secondary relay cluster.
 
 ## Operational Premise
 This failover queue and outbox state machine are only necessary while:
@@ -274,7 +274,7 @@ This failover queue and outbox state machine are only necessary while:
     id: "art-gtm-q3",
     title: "GTM-Q3: Paid Search Outbound Funnel",
     type: "STRATEGY_MEMO",
-    targetLocus: "ops/growth/paid-acquisition-budget.yaml:L1-L27",
+    targetLocus: "examples/demo-repo/ops/growth/paid-acquisition-budget.yaml:L1-L27",
     blastRadius:
       "$45,000/mo high-intent search ad spend + 3 dedicated Clearbit attribution enrichment pipelines must be paused or reallocated if unit economics breach bounds.",
     logicCombinator: "ANY",
@@ -288,7 +288,7 @@ This failover queue and outbox state machine are only necessary while:
     createdAt: "2026-08-05T14:00:00.000Z",
     lastEvaluatedAt: "2026-10-19T09:30:00.000Z",
     rawContent: `# GTM-Q3: Paid Search Outbound Funnel
-**Owner:** VP Growth & RevOps | **Budget Locus:** \`ops/growth/paid-acquisition-budget.yaml:L1-L27\`
+**Owner:** VP Growth & RevOps | **Budget Locus:** \`examples/demo-repo/ops/growth/paid-acquisition-budget.yaml:L1-L27\`
 
 ## Strategic Thesis
 We are allocating $45,000/mo in automated high-intent non-brand search capture ("CI/CD observability", "microservice drift") routed into an automated Clearbit + Clay outbound SDR enrichment sequence.
@@ -402,9 +402,9 @@ export const COMPILER_TEMPLATES: CompilerTemplate[] = [
     badge: "ADR",
     title: "ADR-021: Dedicated L40S GPU Whisper Transcription Fleet",
     type: "ADR",
-    targetLocus: "infra/k8s/gpu-whisper-pool/deployment.yaml:L1-140",
+    targetLocus: "examples/demo-repo/infra/k8s/gpu-whisper-pool/deployment.yaml:L1-140",
     rawContent: `# ADR-021: Dedicated L40S GPU Whisper Transcription Fleet
-**Locus:** \`infra/k8s/gpu-whisper-pool/deployment.yaml:L1-140\`
+**Locus:** \`examples/demo-repo/infra/k8s/gpu-whisper-pool/deployment.yaml:L1-140\`
 
 ## Context
 We operate an autoscaled Kubernetes node pool of 8x NVIDIA L40S GPUs running TensorRT-LLM Whisper-Large-v3 to transcribe enterprise meeting audio streams.
@@ -415,13 +415,13 @@ Maintaining our self-hosted GPU cluster and custom CUDA batching daemon is only 
 2. External API P95 transcription turnaround latency > 1200ms per 30-second audio chunk.
 
 ## Blast Radius if Invalidated
-Decommission the 8x L40S GPU Kubernetes node pool ($7,400/mo AWS EC2 G6e spend), delete \`services/audio-batcher/cuda-worker.py\` (2,900 LOC), and route audio streams directly to the managed API endpoint.`,
+Decommission the 8x L40S GPU Kubernetes node pool ($7,400/mo AWS EC2 G6e spend), delete \`examples/demo-repo/services/audio-batcher/cuda-worker.py\` (2,900 LOC), and route audio streams directly to the managed API endpoint.`,
     precompiled: {
       title: "ADR-021: Dedicated L40S GPU Whisper Transcription Fleet",
       type: "ADR",
-      targetLocus: "infra/k8s/gpu-whisper-pool/deployment.yaml:L1-140",
+      targetLocus: "examples/demo-repo/infra/k8s/gpu-whisper-pool/deployment.yaml:L1-140",
       blastRadius:
-        "Decommission 8x L40S GPU Kubernetes node pool ($7,400/mo AWS G6e spend) and delete 2,900 LOC custom CUDA batching daemon in services/audio-batcher/cuda-worker.py.",
+        "Decommission 8x L40S GPU Kubernetes node pool ($7,400/mo AWS G6e spend) and delete 2,900 LOC custom CUDA batching daemon in examples/demo-repo/services/audio-batcher/cuda-worker.py.",
       logicCombinator: "ANY",
       premises: [
         {
@@ -527,9 +527,9 @@ Delete 3,100 LOC in \`apps/web/src/sync/lz4-delta-engine.ts\`, remove the 180KB 
     title:
       "VENDOR-09: Self-Managed EC2 BGP NAT Router Fleet vs AWS Managed NAT",
     type: "VENDOR_CONTRACT",
-    targetLocus: "infra/terraform/vpc-nat-bgp/main.tf:L1-210",
+    targetLocus: "examples/demo-repo/infra/terraform/vpc-nat-bgp/main.tf:L1-210",
     rawContent: `# VENDOR-09: Self-Managed EC2 BGP NAT Router Fleet
-**Locus:** \`infra/terraform/vpc-nat-bgp/main.tf:L1-210\`
+**Locus:** \`examples/demo-repo/infra/terraform/vpc-nat-bgp/main.tf:L1-210\`
 
 ## Context
 To avoid AWS Managed NAT Gateway per-GB data processing charges during cross-AZ S3 & ECR pulls, we maintain a custom fleet of 6 c7gn.large EC2 instances running FRR BGP failover scripts.
@@ -544,9 +544,9 @@ Tear down 6x c7gn.large EC2 routers, remove FRR BGP keepalived daemon and PagerD
       title:
         "VENDOR-09: Self-Managed EC2 BGP NAT Router Fleet vs AWS Managed NAT",
       type: "VENDOR_CONTRACT",
-      targetLocus: "infra/terraform/vpc-nat-bgp/main.tf:L1-210",
+      targetLocus: "examples/demo-repo/infra/terraform/vpc-nat-bgp/main.tf:L1-210",
       blastRadius:
-        "Decommission 6x c7gn.large EC2 BGP routers, delete infra/terraform/vpc-nat-bgp/main.tf (480 LOC) + FRR keepalived runbooks, and cut over to native S3/ECR VPC Gateway Endpoints.",
+        "Decommission 6x c7gn.large EC2 BGP routers, delete examples/demo-repo/infra/terraform/vpc-nat-bgp/main.tf (480 LOC) + FRR keepalived runbooks, and cut over to native S3/ECR VPC Gateway Endpoints.",
       logicCombinator: "ANY",
       premises: [
         {
