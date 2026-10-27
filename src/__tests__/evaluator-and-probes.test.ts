@@ -79,6 +79,32 @@ describe("Premise Evaluator & Drift Forecaster", () => {
       extractJsonPath(payload, "$.metrics.upstream_llm_input_cost_usd")
     ).toBe(2.75);
   });
+
+  test("extractJsonPath supports array indexes and equality filters", () => {
+    const payload = {
+      data: [
+        { id: "other/model", pricing: { prompt: "0.000009" } },
+        { id: "anthropic/claude-sonnet-5.5", pricing: { prompt: "0.000002" } },
+      ],
+      list: [10, 20],
+    };
+    expect(
+      extractJsonPath(
+        payload,
+        '$.data[?(@.id=="anthropic/claude-sonnet-5.5")].pricing.prompt'
+      )
+    ).toBe("0.000002");
+    expect(extractJsonPath(payload, "$.list[1]")).toBe(20);
+    expect(
+      extractJsonPath(payload, '$.data[?(@.id=="missing/model")].pricing.prompt')
+    ).toBeUndefined();
+  });
+
+  test("evaluatePremiseState reports UNBOUND when no value has been reported", () => {
+    expect(evaluatePremiseState("", "GT", "2.00", 0.15).status).toBe("UNBOUND");
+    expect(evaluatePremiseState("  ", "LT", "65", 0.1).status).toBe("UNBOUND");
+    expect(computeArtifactStatus(["UNBOUND", "VALID"], "ANY")).toBe("HEALTHY");
+  });
 });
 
 describe("SQL_METRIC & PROMQL Probe Execution Engines", () => {

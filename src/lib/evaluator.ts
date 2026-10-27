@@ -28,6 +28,18 @@ export function evaluatePremiseState(
   thresholdRaw: string | number,
   decayWarningMargin: number = 0.1
 ): EvaluationResult {
+  // No value has been reported yet: nothing to judge
+  if (currentRaw === null || currentRaw === undefined || String(currentRaw).trim() === "") {
+    return {
+      status: "UNBOUND",
+      isSatisfied: false,
+      isDecaying: false,
+      driftPercent: 0,
+      marginBoundary: 0,
+      deltaFromThreshold: 0,
+    };
+  }
+
   const currentNum = Number(currentRaw);
   const thresholdNum = Number(thresholdRaw);
 
@@ -394,22 +406,48 @@ export function getSimulationRange(premise: PremiseRecord): {
 /**
  * Extracts a value from a JSON object using a simple JSONPath expression like `$.metrics.foo.bar`
  */
+/**
+ * Small JSONPath subset: dotted keys, array indexes (`[0]`) and equality
+ * filters (`[?(@.id=="x")]`, first match wins).
+ */
 export function extractJsonPath(obj: unknown, jsonPath: string): unknown {
   if (!obj || typeof obj !== "object") return undefined;
-  const cleaned = jsonPath
-    .trim()
-    .replace(/^\$\.?/, "")
-    .replace(/\[(\d+)\]/g, ".$1");
-  if (!cleaned) return obj;
+  const path = jsonPath.trim().replace(/^\$/, "");
+  if (!path || path === ".") return obj;
 
-  const parts = cleaned.split(".").filter(Boolean);
+  const tokenRegex =
+    /\.([^.[\]]+)|\[(\d+)\]|\[\?\(@\.([^=!<>\s)]+)\s*==\s*(?:"([^"]*)"|'([^']*)'|(-?\d+(?:\.\d+)?)|(true|false))\s*\)\]/y;
   let cursor: unknown = obj;
-  for (const part of parts) {
-    if (cursor !== null && typeof cursor === "object" && part in cursor) {
-      cursor = (cursor as Record<string, unknown>)[part];
-    } else {
-      return undefined;
+  let pos = 0;
+  const normalized = path.startsWith(".") || path.startsWith("[") ? path : `.${path}`;
+  while (pos < normalized.length) {
+    tokenRegex.lastIndex = pos;
+    const m = tokenRegex.exec(normalized);
+    if (!m) return undefined;
+    pos = tokenRegex.lastIndex;
+
+    if (m[1] !== undefined || m[2] !== undefined) {
+      const key = m[1] ?? m[2];
+      if (cursor !== null && typeof cursor === "object" && key in cursor) {
+        cursor = (cursor as Record<string, unknown>)[key];
+      } else {
+        return undefined;
+      }
+      continue;
     }
+
+    // Equality filter over an array
+    if (!Array.isArray(cursor)) return undefined;
+    const field = m[3];
+    const expected: unknown =
+      m[4] ?? m[5] ?? (m[6] !== undefined ? Number(m[6]) : m[7] === "true");
+    cursor = cursor.find(
+      (item) =>
+        item !== null &&
+        typeof item === "object" &&
+        (item as Record<string, unknown>)[field] === expected
+    );
+    if (cursor === undefined) return undefined;
   }
   return cursor;
 }
