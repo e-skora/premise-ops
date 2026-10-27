@@ -382,7 +382,7 @@ export function CommandPalette({
       });
     }
 
-    if (selectedArtifact && onOpenLocusInspector) {
+    if (selectedArtifact?.targetLocus && onOpenLocusInspector) {
       items.push({
         id: "cmd-inspect-locus",
         title: `Inspect Source File: ${selectedArtifact.targetLocus}`,
@@ -413,7 +413,7 @@ export function CommandPalette({
       items.push({
         id: `art-${art.id}`,
         title: art.title,
-        subtitle: `${art.targetLocus} • ${art.premises.length} premise(s) • ${art.blastRadius.slice(0, 90)}...`,
+        subtitle: `${art.targetLocus || "No code location set"} • ${art.premises.length} premise(s) • ${art.blastRadius.slice(0, 90)}...`,
         category: "decisions",
         badge: art.cascadedFromId
           ? "CASCADED"

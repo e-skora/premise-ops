@@ -40,6 +40,11 @@ export function LocusInspectorPanel({ artifact }: LocusInspectorPanelProps) {
 
   useEffect(() => {
     let cancelled = false;
+    if (!artifact.targetLocus) {
+      setInspection(null);
+      setUnifiedDiff("");
+      return;
+    }
     const params = new URLSearchParams({
       targetLocus: artifact.targetLocus,
       artifactTitle: artifact.title,
@@ -134,6 +139,20 @@ export function LocusInspectorPanel({ artifact }: LocusInspectorPanelProps) {
       setMutatingFile(null);
     }
   };
+
+  if (!artifact.targetLocus) {
+    return (
+      <div className="border border-zinc-800 bg-zinc-900/25 px-4 py-3 font-mono">
+        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-zinc-400">
+          <Code2 className="w-4 h-4 text-zinc-500 shrink-0" />
+          <span>No code location set</span>
+        </div>
+        <p className="mt-1.5 text-[11px] text-zinc-500">
+          This decision does not name a file, so there is no code to show or patch.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="border border-zinc-800 bg-zinc-900/25 overflow-hidden">
