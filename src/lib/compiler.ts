@@ -135,11 +135,16 @@ function asSuggestionsOnly(compiled: CompiledArtifactOutput): CompiledArtifactOu
 }
 
 function describeError(err: unknown): string {
+  let message: string;
   if (err instanceof Anthropic.APIError) {
-    return `${err.status ?? "network"} ${err.message}`.trim();
+    const cause = (err as { cause?: unknown }).cause;
+    message = err.status
+      ? `Anthropic returned HTTP ${err.status}: ${err.message}`
+      : `${err.message}${cause instanceof Error ? ` (${cause.message})` : ""}`;
+  } else {
+    message = err instanceof Error ? err.message : String(err);
   }
-  if (err instanceof Error) return err.message;
-  return String(err);
+  return message.replace(/[.\s]+$/, "");
 }
 
 type LlmConfig =
