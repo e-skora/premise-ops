@@ -145,7 +145,7 @@ This repo checks itself with [`.github/workflows/premise-ci.yml`](.github/workfl
 
 ## Status: early stage
 
-- No users yet. Built as an open-source tool and a portfolio piece.
+- No users yet.
 - In the demo, one premise is live: ADR-014 reads the real Claude Sonnet 5.5 input price from OpenRouter. Every other value is demo data until you connect your own sources. The UI labels each value Live, Reported, Demo data or No value yet.
 - PromQL without a connected Prometheus server is a subset that runs on PremiseOps's own stored samples.
 - GitHub PRs, Slack and PagerDuty are drafted as dry runs unless you set tokens. A dry run never shows a PR number or link.

@@ -14,9 +14,10 @@ Read this at the start of every session. Update it at the end of every session (
 - The project has no users yet. A Show HN draft is ready in `.handoffs/show-hn-draft.md` (local only).
 
 ## Direction (decided 2026-10-26)
-Premise goes forward as a slim, honest open-source tool and portfolio piece, not a business for now. The core is "todo-or-die for assumptions": write the numbers a decision depends on (in an ADR or `@premise` comments), check them against real sources, fail CI and draft a teardown when one breaks. The web control plane is the demo.
+Premise goes forward as a slim, honest open-source tool, not a business for now. The core is "todo-or-die for assumptions": write the numbers a decision depends on (in an ADR or `@premise` comments), check them against real sources, fail CI and draft a teardown when one breaks. The web control plane is the demo.
 
 ## Standing decisions (do not reopen)
+- 2026-10-27: Public writing (READMEs, docs, PR text, posts) never describes this project or Elias's work as a showcase of his for job hunting. Elias's exact words are kept outside the repo so the phrase is not republished here.
 - 2026-10-25: Deploys are manual. No auto-deploy on push until Elias says he understands it and wants it.
 - 2026-10-26: Safety and the cut-down come before any public launch.
 - 2026-10-26: Premise never shows a value, file path or result it did not really get. At least one demo premise watches real live data (ADR-014 reads the real OpenRouter price).
