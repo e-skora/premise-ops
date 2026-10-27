@@ -1436,9 +1436,7 @@ export function PremiseControlPlane({
                     </span>
                     <span className="text-zinc-500">
                       Evaluated:{" "}
-                      {new Date(
-                        selectedArtifact.lastEvaluatedAt
-                      ).toLocaleTimeString()}
+                      {`${selectedArtifact.lastEvaluatedAt.slice(11, 19)} UTC`}
                     </span>
                   </div>
                   <p className="text-xs text-zinc-200 leading-relaxed">

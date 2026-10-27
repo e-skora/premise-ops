@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   AlertOctagon,
   Check,
@@ -30,11 +30,11 @@ import {
   DecisionArtifactRecord,
   DispatchChannel,
   InvalidationEventRecord,
+  MultiFileTeardownPatch,
   OPERATOR_SYMBOLS,
   formatTeardownBranchName,
 } from "@/lib/types";
 import { synthesizeReplacementAdr } from "@/lib/sunset-synthesizer";
-import { buildMultiFileTeardownPatch } from "@/lib/locus-inspector";
 import { formatUsd } from "@/lib/finops-engine";
 
 interface TeardownPaneProps {
@@ -70,6 +70,40 @@ export function TeardownPane({
   extras = false,
 }: TeardownPaneProps) {
   const [scope, setScope] = useState<"selected" | "global">("selected");
+  // Caller files are found by reading the workspace on the server; the browser
+  // cannot read files, so it asks instead of guessing (undefined = loading)
+  const [serverPatches, setServerPatches] = useState<
+    Record<string, MultiFileTeardownPatch | null | undefined>
+  >({});
+  const patchArtifactId =
+    selectedArtifact && selectedArtifact.invalidationEvents.length > 0
+      ? selectedArtifact.id
+      : null;
+  const patchVersion = selectedArtifact?.lastEvaluatedAt;
+  useEffect(() => {
+    if (!patchArtifactId) return;
+    let cancelled = false;
+    fetch("/api/synthesizer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "preview", artifactId: patchArtifactId }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled) {
+          setServerPatches((prev) => ({
+            ...prev,
+            [patchArtifactId]: data.multiFilePatch ?? null,
+          }));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setServerPatches((prev) => ({ ...prev, [patchArtifactId]: null }));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [patchArtifactId, patchVersion]);
   const [copiedEventId, setCopiedEventId] = useState<string | null>(null);
   const [previewPayloadId, setPreviewPayloadId] = useState<string | null>(null);
   const [dispatchingKey, setDispatchingKey] = useState<string | null>(null);
@@ -364,11 +398,7 @@ ${ev.remediationPlan}
                     </button>
                     <span className="text-zinc-500 flex items-center gap-1 shrink-0">
                       <Clock className="w-3 h-3" />
-                      {new Date(ev.triggeredAt).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        second: "2-digit",
-                      })}
+                      {`${ev.triggeredAt.slice(11, 19)} UTC`}
                     </span>
                   </div>
 
@@ -434,23 +464,9 @@ ${ev.remediationPlan}
                       breachingEvent: ev,
                     });
 
-                    let multiFilePatch = null;
-                    try {
-                      if (art.targetLocus) {
-                        multiFilePatch = buildMultiFileTeardownPatch({
-                          targetLocus: art.targetLocus,
-                          artifactTitle: art.title,
-                          variableName: ev.variableName || "metric",
-                          operator: ev.operator || "GT",
-                          thresholdValue: ev.thresholdValue || "0",
-                          breakingValue: ev.breakingValue || "0",
-                          unit: ev.unit || "",
-                          blastRadius: art.blastRadius,
-                        });
-                      }
-                    } catch {
-                      // ignore
-                    }
+                    const multiFilePatch = serverPatches[art.id] ?? null;
+                    const isCountingFiles =
+                      Boolean(art.targetLocus) && serverPatches[art.id] === undefined;
 
                     const isRetiring = retiringArtifactId === art.id;
                     const isRetired =
@@ -495,6 +511,11 @@ ${ev.remediationPlan}
                         </div>
 
                         {/* Multi-File Caller Blast Radius Scanner */}
+                        {isCountingFiles && (
+                          <div className="p-2 bg-zinc-950/80 border border-zinc-800 text-[11px] font-mono text-zinc-500">
+                            Counting affected files...
+                          </div>
+                        )}
                         {multiFilePatch && (
                           <div className="p-2 bg-zinc-950/80 border border-zinc-800 space-y-2 font-mono">
                             <div className="flex items-center justify-between text-[11px]">
@@ -845,11 +866,7 @@ ${ev.remediationPlan}
                               )}
                             </div>
                             <span className="text-zinc-500 shrink-0">
-                              {new Date(d.dispatchedAt).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                second: "2-digit",
-                              })}
+                              {`${d.dispatchedAt.slice(11, 19)} UTC`}
                             </span>
                           </div>
                         ))}
