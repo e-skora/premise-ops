@@ -2,6 +2,7 @@
   "name": "premise-decay-engine",
   "version": "1.0.0",
   "private": true,
+  "license": "MIT",
   "bin": {
     "premise": "./bin/premise-cli.ts"
   },
