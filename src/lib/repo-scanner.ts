@@ -379,34 +379,7 @@ function parseAdrContent(
     items.push(item);
   }
 
-  // Fallback if no raw regex match: generate general architectural claim
-  if (items.length === 0 && content.length > 50) {
-    const slug = relPath.replace(/[^a-zA-Z0-9]/g, "-");
-    const item: DiscoveredPremiseItem = {
-      id: `adr-${slug}-general`,
-      sourceType: "ADR_FOLDER",
-      sourceFile: relPath,
-      targetLocus,
-      title,
-      artifactType: "ADR",
-      claim: `${title}: Operational efficiency bounds remain positive-NPV`,
-      variableName: `${slug.slice(0, 24)}_efficiency_score`,
-      operator: "GTE",
-      thresholdValue: "80.0",
-      currentValue: "",
-      unit: "pts",
-      decayWarningMargin: 0.1,
-      blastRadius,
-      probeType: "HTTP_JSON_PATH",
-      targetUrlOrQuery: "",
-      jsonPath: "$.metrics.efficiency_score",
-      rawMarkdownSnippet: content.slice(0, 300),
-      alreadyMonitored: existingTitles.has(title.toLowerCase()),
-      matchedArtifactId: null,
-    };
-    items.push(item);
-  }
-
+  // An ADR with no measurable condition yields nothing: never an invented premise
   return items;
 }
 
