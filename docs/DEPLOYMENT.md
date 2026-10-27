@@ -1,4 +1,4 @@
-# Deploying Premise
+# Deploying PremiseOps
 
 This guide shows how to run your own copy on **Fly.io** or **Railway** and point your own domain at it. Replace `<your-app-name>` and `<your-domain>` with your values. The last section has the details of our own live demo at `premise-ops.com`, including the ship log.
 
