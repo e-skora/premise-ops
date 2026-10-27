@@ -137,7 +137,7 @@ jobs:
 
 It checks PremiseOps out into `.premise/`, imports your comments into a fresh database (your decisions only, never the demo ones), runs every probe, and fails the build when a premise breaks or has no data. Use comments rather than ADR files here: an ADR line has no place to name a probe, so an imported ADR premise has no data until you connect a probe in the web app.
 
-These exact steps were run by hand on a scratch repo with one `@premise` comment and a local price feed: a broken price exits `1`, a price that holds exits `0`, and a feed that is down or a comment with no probe exits `1` with "No data". This repo's own CI also runs the two commands on every push against a stand-in repo, [`examples/user-repo`](examples/user-repo). The two `actions/checkout` steps follow the [checkout docs](https://github.com/actions/checkout#checkout-multiple-repos-nested) but have not yet been run from another repo on GitHub.
+These exact steps were run by hand on a scratch repo with one `@premise` comment and a local price feed: a broken price exits `1`, a price that holds exits `0`, and a feed that is down or a comment with no probe exits `1` with "No data". This repo's own CI also runs the two commands on every push against a stand-in repo, [`examples/user-repo`](examples/user-repo). Working example: [`e-skora/premise-ops-example`](https://github.com/e-skora/premise-ops-example) has one `@premise` comment on the real OpenRouter price and this workflow copied exactly. Its first commit breaks the premise ([red run](https://github.com/e-skora/premise-ops-example/actions/runs/40486128905)) and its second holds ([green run](https://github.com/e-skora/premise-ops-example/actions/runs/40486193060)).
 
 ### This repo
 
