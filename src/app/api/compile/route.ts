@@ -9,6 +9,7 @@ import {
 import { COMPILER_TEMPLATES } from "@/db/seed-data";
 import { ArtifactTypeEnum } from "@/lib/types";
 import { withDemoSandbox } from "@/lib/demo-sandbox";
+import { describeMissingLocus } from "@/lib/locus-inspector";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +42,9 @@ async function handlePost(req: NextRequest) {
       overrideLocus: parsed.overrideLocus,
     });
 
+    // A path from the form or the document must be a real file
+    const locusError = describeMissingLocus(compiled.targetLocus);
+
     if (!parsed.persist) {
       return NextResponse.json({
         compiled,
@@ -48,8 +52,13 @@ async function handlePost(req: NextRequest) {
         llmProvider,
         llmModel,
         notice,
+        locusError,
         persisted: false,
       });
+    }
+
+    if (locusError) {
+      return NextResponse.json({ error: locusError, compiled }, { status: 400 });
     }
 
     const createdArtifact = insertCompiledArtifact(

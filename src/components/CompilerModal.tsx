@@ -121,6 +121,7 @@ Delete 1,600 LOC Redis read-through cache in \`src/services/cache-router.ts:L42-
         data.llmModel ? `${data.compilerEngine} (${data.llmProvider}: ${data.llmModel})` : data.compilerEngine
       );
       setNotice(data.notice || null);
+      setError(data.locusError || null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to parse document");
     } finally {

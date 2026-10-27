@@ -93,6 +93,16 @@ function getServerFsAndPath(): {
 }
 
 /**
+ * Says why a code location cannot be saved, or null when it can: empty
+ * (no location) or a real file inside the workspace.
+ */
+export function describeMissingLocus(rawLocus: string): string | null {
+  const locus = (rawLocus || "").trim();
+  if (!locus || inspectLocalLocus(locus).exists) return null;
+  return `File not found: ${parseTargetLocus(locus).filePath} is not in this repo. Fix the path, or remove it to save the decision with no code location.`;
+}
+
+/**
  * Inspects a local file and line range in the repository corresponding to targetLocus.
  */
 export function inspectLocalLocus(rawLocus: string): LocusInspectionResult {
