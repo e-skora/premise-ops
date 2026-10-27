@@ -32,7 +32,8 @@ async function handlePost(req: NextRequest) {
     const body = await req.json();
     const parsed = CompileRequestSchema.parse(body);
 
-    const { compiled, compilerEngine } = await compileDecisionArtifact({
+    const { compiled, compilerEngine, llmProvider, llmModel, notice } =
+      await compileDecisionArtifact({
       rawContent: parsed.rawContent,
       templateId: parsed.templateId,
       overrideType: parsed.overrideType,
@@ -44,6 +45,9 @@ async function handlePost(req: NextRequest) {
       return NextResponse.json({
         compiled,
         compilerEngine,
+        llmProvider,
+        llmModel,
+        notice,
         persisted: false,
       });
     }
@@ -56,6 +60,9 @@ async function handlePost(req: NextRequest) {
     return NextResponse.json({
       compiled,
       compilerEngine,
+      llmProvider,
+      llmModel,
+      notice,
       persisted: true,
       artifact: createdArtifact,
       artifacts: getAllArtifactsWithRelations(),

@@ -64,6 +64,8 @@ export function CompilerModal({
   const [isCompiling, setIsCompiling] = useState(false);
   const [isPersisting, setIsPersisting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // e.g. "AI extraction failed: ... Used the basic parser."
+  const [notice, setNotice] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -75,6 +77,7 @@ export function CompilerModal({
     setOverrideLocus(tpl.targetLocus);
     setPreviewCompiled(tpl.precompiled);
     setError(null);
+    setNotice(null);
   };
 
   const handleLoadCustomExample = () => {
@@ -116,7 +119,10 @@ Delete 1,600 LOC Redis read-through cache in \`src/services/cache-router.ts:L42-
         throw new Error(data.error || "Compilation failed");
       }
       setPreviewCompiled(data.compiled);
-      setCompilerEngine(data.compilerEngine);
+      setCompilerEngine(
+        data.llmModel ? `${data.compilerEngine} (${data.llmProvider}: ${data.llmModel})` : data.compilerEngine
+      );
+      setNotice(data.notice || null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to parse document");
     } finally {
@@ -149,6 +155,13 @@ Delete 1,600 LOC Redis read-through cache in \`src/services/cache-router.ts:L42-
         artifacts: data.artifacts,
         invalidationEvents: data.invalidationEvents,
       });
+      if (data.notice) {
+        // Saved, but keep the modal open so the fallback is not hidden
+        setNotice(`${data.notice} Saved anyway.`);
+        setPreviewCompiled(data.compiled);
+        setCompilerEngine(data.compilerEngine);
+        return;
+      }
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save artifact");
@@ -337,6 +350,12 @@ Delete 1,600 LOC Redis read-through cache in \`src/services/cache-router.ts:L42-
               </div>
             )}
 
+            {notice && (
+              <div className="p-3 bg-amber-950/40 border border-amber-500/40 text-xs text-amber-300 font-mono">
+                {notice}
+              </div>
+            )}
+
             {!previewCompiled ? (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-6 border border-dashed border-zinc-800">
                 <Cpu className="w-8 h-8 text-zinc-600 mb-2" />
@@ -347,7 +366,7 @@ Delete 1,600 LOC Redis read-through cache in \`src/services/cache-router.ts:L42-
                   </span>{" "}
                   or{" "}
                   <span className="text-emerald-400 font-mono">
-                    Compile & Bind Live Probes
+                    Compile & Save
                   </span>{" "}
                   to extract load-bearing premises from your document.
                 </p>
@@ -365,7 +384,11 @@ Delete 1,600 LOC Redis read-through cache in \`src/services/cache-router.ts:L42-
                 <div className="p-3 bg-zinc-900/80 border border-zinc-800">
                   <div className="flex items-center justify-between text-[10px] font-mono uppercase text-amber-400 mb-1">
                     <span>Extracted Blast Radius (Obsolete If Invalidated)</span>
-                    <span>Locus: {previewCompiled.targetLocus}</span>
+                    <span>
+                      {previewCompiled.targetLocus
+                        ? `Locus: ${previewCompiled.targetLocus}`
+                        : "No code location set"}
+                    </span>
                   </div>
                   <p className="text-xs text-zinc-300 leading-relaxed">
                     {previewCompiled.blastRadius}
@@ -405,9 +428,9 @@ Delete 1,600 LOC Redis read-through cache in \`src/services/cache-router.ts:L42-
                           </span>
                         </div>
                         <div>
-                          <span className="text-zinc-500">BASELINE: </span>
+                          <span className="text-zinc-500">VALUE: </span>
                           <span className="text-zinc-200">
-                            {p.currentValue} {p.unit}
+                            {p.currentValue ? `${p.currentValue} ${p.unit}` : "No value yet"}
                           </span>
                         </div>
                       </div>
@@ -418,7 +441,10 @@ Delete 1,600 LOC Redis read-through cache in \`src/services/cache-router.ts:L42-
                           <strong className="text-zinc-300">
                             {p.recommendedProbe.probeType}
                           </strong>{" "}
-                          → {p.recommendedProbe.targetUrlOrQuery}
+                          →{" "}
+                          {p.recommendedProbe.targetUrlOrQuery && p.recommendedProbe.status !== "UNBOUND"
+                            ? p.recommendedProbe.targetUrlOrQuery
+                            : "suggested, not connected"}
                         </span>
                         <span className="text-zinc-500">
                           every {p.recommendedProbe.pollingIntervalSeconds}s
@@ -437,8 +463,8 @@ Delete 1,600 LOC Redis read-through cache in \`src/services/cache-router.ts:L42-
           <div className="flex items-center gap-2 text-xs text-zinc-400 font-mono">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
             <span>
-              Persists to local SQLite (`premise.db`) and binds live probe
-              listeners immediately.
+              Saves to SQLite. Suggested probes stay unconnected until you set a
+              real source.
             </span>
           </div>
           <div className="flex items-center gap-2.5">
@@ -461,7 +487,7 @@ Delete 1,600 LOC Redis read-through cache in \`src/services/cache-router.ts:L42-
               ) : (
                 <ArrowRight className="w-3.5 h-3.5" />
               )}
-              <span>Compile & Bind Live Probes</span>
+              <span>Compile & Save</span>
             </button>
           </div>
         </div>
