@@ -6,6 +6,7 @@
  *    database and the locus workspace root at it
  *  - copies the demo fixture files the tests patch into that scratch folder,
  *    so apply/rollback never touches the working checkout
+ *  - replaces fetch with a guard that refuses every outside request
  */
 import fs from "node:fs";
 import os from "node:os";
@@ -18,6 +19,7 @@ const SCRUBBED_PREFIXES = [
   "GITHUB_",
   "SLACK_",
   "PAGERDUTY_",
+  "ANTHROPIC_",
 ];
 const SCRUBBED_KEYS = ["GH_TOKEN", "NEXT_PUBLIC_APP_URL"];
 
@@ -53,6 +55,13 @@ process.env.HOME = homeDir;
 process.env.PREMISE_DB_PATH = path.join(scratchRoot, "premise-test.db");
 process.env.PREMISE_WORKSPACE_ROOT = workspaceRoot;
 process.env.PREMISE_SANDBOX_DIR = path.join(scratchRoot, "sandboxes");
+
+// No test may reach a real outside API. Tests that need a response swap in
+// their own fetch mock and restore this guard afterwards.
+globalThis.fetch = (async (input: string | URL | Request) => {
+  const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+  throw new Error(`Network access is blocked in tests (attempted: ${url})`);
+}) as unknown as typeof fetch;
 
 process.on("exit", () => {
   try {
