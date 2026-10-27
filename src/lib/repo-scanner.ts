@@ -306,13 +306,25 @@ function parseAdrContent(
   let targetLocus = `${relPath}:L1-L30`;
   let blastRadius = "Sunset supporting architecture if premise breaks.";
 
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     if (line.startsWith("# ")) {
       title = line.replace(/^#\s+/, "").trim();
     }
     const locusMatch = line.match(/\*\*Locus:\*\*\s*`?([^`\*\n]+)`?/i);
     if (locusMatch) {
       targetLocus = locusMatch[1].trim();
+    }
+    if (/^#+\s/.test(line)) {
+      // "## Blast Radius & Sunset Criteria": the text is the paragraph below
+      if (/Blast Radius|Sunset/i.test(line)) {
+        const body: string[] = [];
+        for (let j = i + 1; j < lines.length && !/^#+\s/.test(lines[j]); j++) {
+          if (lines[j].trim()) body.push(lines[j].trim());
+        }
+        if (body.length > 0) blastRadius = body.join(" ");
+      }
+      continue;
     }
     const blastMatch = line.match(/(?:Blast Radius|Sunset Criteria)[:\s*]+([^\n]+)/i);
     if (blastMatch) {

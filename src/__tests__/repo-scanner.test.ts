@@ -37,6 +37,10 @@ describe("GitHub Repository Scanner & Discovered Premises Inbox (Premise Engine 
       (d) => d.variableName === "vector_embedding_cost_monthly_usd"
     );
     expect(costItem).toBeDefined();
+    // The "## Blast Radius & Sunset Criteria" heading's paragraph, not the heading's tail
+    expect(costItem?.blastRadius.startsWith(
+      "Decommission $450/mo Pinecone pod reservation"
+    )).toBe(true);
     expect(costItem?.operator).toBe("LT");
     expect(costItem?.thresholdValue).toBe("450.00");
     expect(costItem?.unit).toContain("USD");
