@@ -1,7 +1,9 @@
 # PREMISE (The Premise-Decay Engine): Agent & Architecture Context
 
 ## 1. System Overview
-**Premise** (`https://premise-ops.com`, "CI/CD for Architectural & Strategic Decisions") is an executable decision-assertion engine and garbage collector for outdated architectural and strategic constraints. It ingests ADRs, GitHub PRs, strategy memos and vendor contracts, compiles their natural-language assumptions into live probes, evaluates them against telemetry, and generates teardown diffs and outbound alerts when load-bearing premises break.
+**Premise** (`https://premise-ops.com`, "CI/CD for Architectural & Strategic Decisions") is an executable decision-assertion engine and garbage collector for outdated architectural and strategic constraints. It ingests ADRs, GitHub PRs, strategy memos and vendor contracts, compiles their natural-language assumptions into premises with suggested probes, evaluates them against telemetry once a probe is connected, and drafts teardown diffs and outbound alerts when load-bearing premises break.
+
+Honesty rules the code follows: a premise has no value (status `UNBOUND`) until a probe or a person reports one; every value records where it came from (`Premise.valueSource`, `valueObservedAt`) and the UI labels it Live, Reported, Demo data or No value yet; dispatches are `SENT`, `DRY_RUN` or `FAILED` and never carry an invented PR number or link. In the demo, one premise is live: ADR-014's cost premise reads the real Claude Sonnet 5.5 input price from OpenRouter. The other seeded premises are demo data.
 
 ## 2. Running It
 Make sure `node` (v22+) and `bun` are on PATH.
@@ -29,8 +31,11 @@ CLI flags: `check`, `scan`, `backtest`, `replay`, `--scenario`, `--steps`, `--sh
 | `PREMISE_PUBLIC_DEMO=1` | Public demo mode (on in `fly.toml`). Off by default. |
 | `PREMISE_SANDBOX_DIR` | Where demo sandboxes live. Defaults to `/tmp/premise-sandboxes`. |
 | `PREMISE_EXTRAS=1` | Shows FinOps / Balance Sheet, Time Machine, Topology Graph and PagerDuty. Off by default. |
-| `OPENAI_API_KEY` | Enables LLM extraction in the compiler (ignored in demo mode). |
-| `GITHUB_TOKEN` / `GH_TOKEN` | Enables real teardown PRs (ignored in demo mode). |
+| `PREMISE_LLM_PROVIDER` | `anthropic` or `openai`. Unset: `ANTHROPIC_API_KEY` first, then `OPENAI_API_KEY`. |
+| `ANTHROPIC_API_KEY` | Language-model extraction via the Anthropic Messages API, default model `claude-haiku-5-5` (ignored in demo mode). |
+| `OPENAI_API_KEY` | Language-model extraction via the OpenAI Responses API, default model `gpt-6-luna` (ignored in demo mode). |
+| `PREMISE_LLM_MODEL` | Overrides the model for the chosen provider. |
+| `GITHUB_TOKEN` / `GH_TOKEN` | Lets the PR bot open real PRs; without it PRs are dry runs (ignored in demo mode). |
 
 ## 3. Persistence
 - Zero-config local SQLite in WAL mode via `src/db/index.ts`. That file holds the real schema (`initSchema`); `docs/history/schema-reference.prisma` is reference only.
@@ -41,7 +46,8 @@ CLI flags: `check`, `scan`, `backtest`, `replay`, `--scenario`, `--steps`, `--sh
 - `src/middleware.ts` gives each visitor a `premise_sandbox` cookie. `src/lib/demo-sandbox.ts` copies a seeded template into `/tmp/premise-sandboxes/<id>.db`, deletes sandboxes older than 24 hours and caps the total at 500 (oldest first).
 - Every API route is wrapped in `withDemoSandbox`, and `src/app/demo/page.tsx` renders from the visitor's sandbox, so one visitor never sees another's changes.
 - Blocked with HTTP 403 `{ error: "Disabled in public demo" }`: `/api/connectors` POST, `/api/locus` POST, `/api/scanner/scan` against anything but the bundled demo repo.
-- Silently safe: dispatch is always a dry run; no git branches, PRs, OpenAI calls, live Prometheus/Datadog queries or probe fetches to outside URLs; `locus-inspector` refuses real file writes.
+- Silently safe: dispatch is always a dry run; no git branches, PRs, language-model calls or live Prometheus/Datadog queries; `locus-inspector` refuses real file writes.
+- Outside probe fetches are blocked except one exact-match URL, `https://openrouter.ai/api/v1/models` (ADR-014's live price), cached for 10 minutes (`src/lib/live-feeds.ts`). A blocked probe records the reason in `Probe.lastError` and keeps its value.
 - Connectors show as "demo placeholder"; a banner says changes are private and reset after 24 hours.
 
 ## 5. Codebase Map
@@ -53,15 +59,16 @@ CLI flags: `check`, `scan`, `backtest`, `replay`, `--scenario`, `--steps`, `--sh
 - `src/lib/types.ts`: TypeScript interfaces and Zod schemas (`CompiledArtifactOutputSchema`, `CompiledPremiseSchema`, `LocusInspectionResult`, `DiscoveredCodebasePremise`, connector types).
 
 ### Core engines (`src/lib/`)
-- `evaluator.ts`: `evaluatePremiseState` (`LT | LTE | GT | GTE | EQ | NEQ`, `decayWarningMargin`, `VALID` / `DECAYING` / `BROKEN`), `computeArtifactStatus` (`ANY` / `ALL` gates), `computeDriftForecast` (linear-regression time-to-invalidation), `generateRemediationPlan`.
-- `compiler.ts`: `compileDecisionArtifact`, LLM extraction with a deterministic fallback (`parseDocumentDeterministically`, `extractQuantitativePremises`).
-- `probe-engines.ts`: `executeReadOnlySqlMetricQuery` (read-only SQL against the database) and `evaluatePromQlExpression` (PromQL evaluator: `avg_over_time`, `rate`, `quantile_over_time`, label selectors, arithmetic).
+- `evaluator.ts`: `evaluatePremiseState` (`LT | LTE | GT | GTE | EQ | NEQ`, `decayWarningMargin`, `VALID` / `DECAYING` / `BROKEN`, `UNBOUND` for an empty value), `computeArtifactStatus` (`ANY` / `ALL` gates), `computeDriftForecast` (linear-regression time-to-invalidation), `extractJsonPath` (dotted keys, `[n]`, `[?(@.field=="x")]` filters), `generateRemediationPlan`.
+- `compiler.ts`: `compileDecisionArtifact`. Language-model extraction (Anthropic SDK or OpenAI Responses API, JSON schema output, validated with Zod) with a deterministic fallback (`parseDocumentDeterministically`, `extractQuantitativePremises`) that reports why it fell back. Compiled premises never carry a value; their probes are `UNBOUND` suggestions.
+- `live-feeds.ts`: `fetchLiveJson` (10-minute cache for allowlisted URLs), the public demo allowlist, and value-source labels.
+- `probe-engines.ts`: `executeReadOnlySqlMetricQuery` (read-only SQL against the database) and `evaluatePromQlExpression` (a PromQL subset that runs on Premise's own stored samples: `avg_over_time`, `rate`, `quantile_over_time`, label selectors, arithmetic). Real Prometheus queries go through `telemetry-connectors.ts`.
 - `telemetry-connectors.ts`: Prometheus/Thanos instant and range queries (Bearer, Basic, tenant headers) and Datadog Metric API v2 with v1 fallback, plus connection tests.
-- `outbound-dispatchers.ts`: Slack Block Kit alerts and PagerDuty Events v2, with dry-run support.
+- `outbound-dispatchers.ts`: Slack Block Kit alerts and PagerDuty Events v2; results are `SENT`, `DRY_RUN` or `FAILED`.
 - `locus-inspector.ts`: reads real files at a `targetLocus`, builds `git apply`-ready diffs, applies and rolls back teardowns (`LocusBackup`), and finds multi-file caller blast radius.
 - `codebase-scanner.ts`: finds inline `@premise` / `@premise-locus` annotations under `packages/ services/ infra/ ops/` at the workspace root and inside `examples/demo-repo/`.
 - `repo-scanner.ts`: scans ADR folders, dependency manifests (`HEAVY_DEPENDENCY_CATALOG`) and inline premises into a deduplicated inbox; converts findings to `CompiledArtifactOutput`.
-- `github-pr-bot.ts`: teardown branch names, PR body markdown, `gh pr create` commands, local branch creation and PR publishing with dry-run fallback.
+- `github-pr-bot.ts`: teardown branch names, PR body markdown, `gh pr create` commands, local branch creation; opens the PR only with a GitHub token, otherwise returns `DRY_RUN` with no PR number or link.
 - `backtest-engine.ts`: scenario presets, deterministic time-series generator, resilience scoring (HIGH / MODERATE / BRITTLE), threshold buffer advisor, replay with cascade propagation.
 - `finops-engine.ts`: monthly and daily drag and cumulative savings (`calculateFinOpsLedger`, `formatUsd`).
 - `sunset-synthesizer.ts` / `sunset-synthesizer-server.ts`: replacement ADR synthesis and the "Retire & Promote" workflow.

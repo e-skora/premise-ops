@@ -463,7 +463,7 @@ ${ev.remediationPlan}
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-sky-400">
                             <Sparkles className="w-3.5 h-3.5 text-sky-400" />
-                            <span>Autonomous Sunset Synthesizer</span>
+                            <span>Sunset Synthesizer</span>
                           </div>
                           <span className="text-[9px] font-mono px-1.5 py-0.5 bg-sky-950 text-sky-300 border border-sky-800">
                             HORIZON E

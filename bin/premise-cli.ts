@@ -197,7 +197,7 @@ ${ANSI.bold}USAGE:${ANSI.reset}
   bun ./bin/premise-cli.ts backtest [--scenario <name>] [--steps <n>] [--shock <pct>] [--noise <pct>] [--json]
 
 ${ANSI.bold}COMMANDS:${ANSI.reset}
-  check                            Evaluate all load-bearing premises against live HTTP, SQL_METRIC, and PROMQL probes
+  check                            Run probes, then evaluate all load-bearing premises (ADR-014's OpenRouter price is the one live demo source; other seeded premises use demo data)
   scan                             Scan workspace files, markdown ADRs, and package manifests for architectural assumptions
   backtest, replay                 Run historical drift backtesting & scenario stress-testing across decision portfolio
 
@@ -224,7 +224,7 @@ ${ANSI.bold}OPTIONS:${ANSI.reset}
   --mutate <variable>=<value>      Mutate a telemetry variable before running assertions (e.g., upstream_llm_input_cost_usd=1.40)
   --apply                          Apply generated teardown patches directly to local workspace files for INVALIDATED decisions
   --rollback                       Restore any patched workspace files from SQLite LocusBackup snapshots
-  --create-pr, --pr                Autonomously create git branch & publish/stage GitHub Teardown PR for INVALIDATED decisions
+  --create-pr, --pr                Draft a teardown PR for INVALIDATED decisions; opens it on GitHub only when GITHUB_TOKEN is set
   --branch <name>                  Custom branch name for teardown PR (default: premise/teardown-<artifactId>)
   --repo <owner/repo>              Target GitHub repository (default: org/core-monorepo)
   --import                         (With 'scan') Automatically compile & import all untracked codebase premises into ./premise.db
@@ -1175,19 +1175,23 @@ async function main() {
               `\n${ANSI.emerald}${ANSI.bold}╔══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗${ANSI.reset}`
             );
             console.log(
-              `${ANSI.emerald}${ANSI.bold}║  🤖 AUTONOMOUS GITHUB PR BOT DISPATCH // PULL REQUEST STAGED                                                                 ║${ANSI.reset}`
+              `${ANSI.emerald}${ANSI.bold}║  GITHUB PR BOT // ${pr.status === "SENT" ? "PULL REQUEST OPENED" : pr.status === "FAILED" ? "FAILED" : "DRY RUN: NOTHING WAS SENT"}`.padEnd(133) + `║${ANSI.reset}`
             );
             console.log(
               `${ANSI.emerald}${ANSI.bold}╚══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝${ANSI.reset}`
             );
             console.log(
-              `  • ${ANSI.bold}Pull Request:${ANSI.reset}  ${ANSI.emerald}${pr.prUrl}${ANSI.reset} (${pr.isDryRun ? "Dry-Run Staged" : "Live Published"})`
+              pr.status === "SENT"
+                ? `  • ${ANSI.bold}Pull Request:${ANSI.reset}  ${ANSI.emerald}${pr.prUrl}${ANSI.reset} (opened)`
+                : pr.status === "FAILED"
+                  ? `  • ${ANSI.bold}Pull Request:${ANSI.reset}  ${ANSI.rose}Failed: ${pr.error}${ANSI.reset}`
+                  : `  • ${ANSI.bold}Pull Request:${ANSI.reset}  Dry run: nothing was sent. ${pr.dryRunReason ?? ""}`
             );
             console.log(
               `  • ${ANSI.bold}Git Branch:${ANSI.reset}    ${ANSI.sky}${pr.branchName}${ANSI.reset}${pr.commitSha ? ` (Commit: ${pr.commitSha})` : ""}`
             );
             console.log(
-              `  • ${ANSI.bold}Compare URL:${ANSI.reset}   ${ANSI.dim}${pr.compareUrl}${ANSI.reset}`
+              `  • ${ANSI.bold}Compare URL:${ANSI.reset}   ${ANSI.dim}${pr.compareUrl}${ANSI.reset}${pr.status === "SENT" ? "" : " (works once the branch is pushed)"}`
             );
             console.log(
               `  • ${ANSI.bold}CLI Command:${ANSI.reset}   ${ANSI.amber}${pr.ghCliCommand}${ANSI.reset}`

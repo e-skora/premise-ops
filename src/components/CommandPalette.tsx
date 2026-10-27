@@ -314,7 +314,7 @@ export function CommandPalette({
 
     items.push({
       id: "cmd-sse-stream",
-      title: isSseActive ? "Stop Autonomous SSE Live Stream" : "Start Autonomous SSE Live Stream",
+      title: isSseActive ? "Stop SSE Probe Stream" : "Start SSE Probe Stream",
       subtitle: isSseActive ? "Disconnect background SSE probe daemon" : "Stream automated probe ticks via /api/stream",
       category: "commands",
       badge: isSseActive ? "SSE ACTIVE" : "SSE IDLE",

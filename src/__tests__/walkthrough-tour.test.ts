@@ -10,7 +10,7 @@ describe("Interactive Guided Walkthrough Tour", () => {
     {
       id: "probes",
       targetSelector: '[data-tour="telemetry-probe"]',
-      tag: "STEP 2 // LIVE TELEMETRY PROBES",
+      tag: "STEP 2 // TELEMETRY PROBES",
     },
     {
       id: "drift-slider",
@@ -30,7 +30,7 @@ describe("Interactive Guided Walkthrough Tour", () => {
     {
       id: "dispatch",
       targetSelector: '[data-tour="teardown-dispatch"]',
-      tag: "STEP 6 // AUTONOMOUS PR BOT & ALERTS",
+      tag: "STEP 6 // PR BOT & ALERTS",
     },
     {
       id: "finops",

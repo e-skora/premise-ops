@@ -991,7 +991,7 @@ export function PremiseControlPlane({
                 ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/60 font-semibold"
                 : "bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border-zinc-700"
             }`}
-            title="Stream autonomous background probe ticks via Server-Sent Events (/api/stream)"
+            title="Run probes in the background via Server-Sent Events (/api/stream). Demo-data premises get small random jitter; the live OpenRouter price is fetched for real (cached 10 minutes)."
           >
             <Wifi
               className={`w-3.5 h-3.5 ${
@@ -1000,7 +1000,7 @@ export function PremiseControlPlane({
                   : "text-zinc-400"
               }`}
             />
-            <span>{isAutoStreamActive ? "SSE Live: ON" : "Auto-Poll SSE"}</span>
+            <span>{isAutoStreamActive ? "Auto-Poll: ON" : "Auto-Poll SSE"}</span>
           </button>
 
           {/* Connect Repository & ADR Auto-Extractor Button */}
