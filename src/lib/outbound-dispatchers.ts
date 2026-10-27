@@ -271,7 +271,7 @@ export async function testSlackWebhook(
     operator: "GT",
     unit: "USD / 1M tokens",
     artifactTitle: "ADR-TEST: Live Slack Dispatcher Verification",
-    targetLocus: "packages/llm-gateway/src/semantic-cache.ts",
+    targetLocus: "",
   };
 
   const dispatchRes = await dispatchSlackWebhookAlert({
@@ -512,7 +512,7 @@ export async function testPagerDutyConnection(
     operator: "GTE",
     unit: "%",
     artifactTitle: "ADR-TEST: PagerDuty Events v2 Verification",
-    targetLocus: "services/auth/src/provider.ts",
+    targetLocus: "",
   };
 
   const dispatchRes = await dispatchPagerDutyEvent({

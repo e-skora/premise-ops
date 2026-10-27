@@ -87,7 +87,7 @@ export function CompilerModal({
 We maintain this custom Redis caching layer because Upstream API X takes >800ms and costs $15/1M tokens. Additionally, acquisition channel Y is viable as long as CAC stays under $45.
 
 ## Blast Radius
-Delete 1,600 LOC Redis read-through cache in \`src/services/cache-router.ts:L42-110\` and decommission the $380/mo ElastiCache cluster.`;
+Delete the 1,600 LOC Redis read-through cache and decommission the $380/mo ElastiCache cluster.`;
     setRawContent(customDoc);
     setOverrideTitle("ADR-029: Custom Redis Read-Through Caching Layer");
     setOverrideType("ADR");
@@ -290,7 +290,7 @@ Delete 1,600 LOC Redis read-through cache in \`src/services/cache-router.ts:L42-
                   setOverrideLocus(e.target.value);
                   setSelectedTemplateId("");
                 }}
-                placeholder="e.g., src/services/router.ts:L42-110"
+                placeholder="e.g., examples/demo-repo/services/ingest-worker/queue.ts:L1-L30"
                 className="w-full px-2.5 py-1.5 text-xs bg-zinc-900 border border-zinc-800 text-zinc-100 font-mono focus:outline-none focus:border-emerald-500"
               />
             </div>
