@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { compareBrokenToExpected } from "../src/lib/expected-outcome";
 import {
   applyLocusPatchAndRecordBackup,
   dispatchInvalidationAlert,
@@ -218,6 +219,7 @@ ${ANSI.bold}OPTIONS:${ANSI.reset}
   --strict                         Exit with code 1 on DECAYING / AT_RISK warnings as well as BROKEN premises
   --finops                         Display Architecture Balance Sheet & Inefficiency Drag Ledger
   --no-poll                        Skip live probe execution before evaluating assertions
+  --expect-broken <ids>            Comma-separated premise ids or variable names known to be BROKEN; check passes only if exactly these are broken
   --artifact <id>                  Filter check or backtest to a single DecisionArtifact ID (e.g., art-adr-014)
   --premise <id>                   Filter backtest to a single Premise ID
   --simulate-breach <varOrPremId>  Inject a synthetic threshold breach for a premise/variable to test CI failure & cascade
@@ -828,6 +830,10 @@ async function main() {
   const mutateExpr = getArgValue("--mutate");
   const customBranch = getArgValue("--branch");
   const targetRepo = getArgValue("--repo");
+  const expectBrokenArg = getArgValue("--expect-broken");
+  const expectedBroken = expectBrokenArg
+    ? expectBrokenArg.split(",").map((e) => e.trim()).filter(Boolean)
+    : null;
 
   if (shouldRollback) {
     const restored = rollbackAllPatchedLoci();
@@ -943,10 +949,16 @@ async function main() {
     }
   }
 
-  const shouldFail =
-    brokenPremises.length > 0 ||
-    invalidatedArtifacts.length > 0 ||
-    (isStrict && decayingPremises.length > 0);
+  // With --expect-broken, the known broken premises are the expected outcome:
+  // only a different set of broken premises fails the check
+  const expectation = expectedBroken
+    ? compareBrokenToExpected(brokenPremises, expectedBroken)
+    : null;
+  const shouldFail = expectation
+    ? !expectation.ok || (isStrict && decayingPremises.length > 0)
+    : brokenPremises.length > 0 ||
+      invalidatedArtifacts.length > 0 ||
+      (isStrict && decayingPremises.length > 0);
   const exitCode = shouldFail ? 1 : 0;
 
   const finOpsLedger = calculateFinOpsLedger(artifacts, allEvents);
@@ -959,6 +971,9 @@ async function main() {
           ok: exitCode === 0,
           exitCode,
           strictMode: isStrict,
+          expectedBroken: expectation
+            ? { expected: expectedBroken, ...expectation }
+            : null,
           appliedLoci,
           finOps: finOpsLedger,
           summary: {
@@ -1220,6 +1235,29 @@ async function main() {
     console.log(
       `\n${ANSI.bgEmerald}${ANSI.bold}${ANSI.white} ✔ ALL LOAD-BEARING ARCHITECTURAL & STRATEGIC PREMISES HOLDING TRUE (EXIT 0) ${ANSI.reset}\n`
     );
+  }
+
+  if (expectation) {
+    const brokenList = brokenPremises
+      .map((p) => `${p.variableName} = ${p.currentValue} ${p.unit}`.trim())
+      .join(", ");
+    if (expectation.ok) {
+      console.log(
+        `${ANSI.emerald}${ANSI.bold}✔ EXPECTED OUTCOME: exactly the expected premise(s) are BROKEN [${expectedBroken!.join(", ")}] (${brokenList}). Exit 0.${ANSI.reset}\n`
+      );
+    } else {
+      if (expectation.missing.length > 0) {
+        console.log(
+          `${ANSI.rose}${ANSI.bold}✖ EXPECTED BROKEN BUT NOT BROKEN: ${expectation.missing.join(", ")}${ANSI.reset}`
+        );
+      }
+      if (expectation.unexpected.length > 0) {
+        console.log(
+          `${ANSI.rose}${ANSI.bold}✖ UNEXPECTED BROKEN PREMISE(S): ${expectation.unexpected.join(", ")}${ANSI.reset}`
+        );
+      }
+      console.log("");
+    }
   }
 
   process.exit(exitCode);

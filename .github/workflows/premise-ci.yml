@@ -34,6 +34,13 @@ jobs:
       - name: Run Historical Telemetry Time-Machine Backtest
         run: bun ./bin/premise-cli.ts backtest --scenario historical
 
+      # No live internet here: the OpenRouter premise reads a saved copy of the
+      # real response (examples/fixtures/live-feeds). At that saved price
+      # ($2.00 per 1M tokens) ADR-014's "> $2.00" premise is really BROKEN, so
+      # the step expects exactly that and fails on any other outcome.
+      # The live site keeps fetching the real price.
       - name: Run Premise CI/CD Decision Assertions
-        run: bun ./bin/premise-cli.ts check
+        env:
+          PREMISE_FEED_FIXTURE_DIR: examples/fixtures/live-feeds
+        run: bun ./bin/premise-cli.ts check --expect-broken upstream_llm_input_cost_usd
 

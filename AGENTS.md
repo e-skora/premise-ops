@@ -16,12 +16,12 @@ Make sure `node` (v22+) and `bun` are on PATH.
 | Prove tests leave the checkout alone | `scripts/check-test-isolation.sh` |
 | Type-check | `npx tsc --noEmit` |
 | Production build | `bun run build` |
-| CI assertions | `bun ./bin/premise-cli.ts check` (exits `1` when a load-bearing premise is `BROKEN`) |
+| CI assertions | `bun ./bin/premise-cli.ts check` (exits `1` when a load-bearing premise is `BROKEN`; `--expect-broken <ids>` passes only when exactly those premises are broken) |
 | Codebase scan | `bun ./bin/premise-cli.ts scan` |
 | Backtest | `bun ./bin/premise-cli.ts backtest --scenario historical` |
 | Deploy (manual only) | `fly deploy --remote-only --ha=false` (see `docs/DEPLOYMENT.md`) |
 
-CLI flags: `check`, `scan`, `backtest`, `replay`, `--scenario`, `--steps`, `--shock`, `--noise`, `--apply`, `--rollback`, `--strict`, `--simulate-breach`, `--mutate`, `--reset`, `--json`, `--finops`.
+CLI flags: `check`, `scan`, `backtest`, `replay`, `--scenario`, `--steps`, `--shock`, `--noise`, `--apply`, `--rollback`, `--strict`, `--simulate-breach`, `--mutate`, `--reset`, `--json`, `--finops`, `--expect-broken`.
 
 ### Environment variables
 | Variable | Effect |
@@ -31,6 +31,7 @@ CLI flags: `check`, `scan`, `backtest`, `replay`, `--scenario`, `--steps`, `--sh
 | `PREMISE_PUBLIC_DEMO=1` | Public demo mode (on in `fly.toml`). Off by default. |
 | `PREMISE_SANDBOX_DIR` | Where demo sandboxes live. Defaults to `/tmp/premise-sandboxes`. |
 | `PREMISE_EXTRAS=1` | Shows FinOps / Balance Sheet, Time Machine, Topology Graph and PagerDuty. Off by default. |
+| `PREMISE_FEED_FIXTURE_DIR` | Offline feed mode: outside probes read saved copies listed in `<dir>/manifest.json` instead of the network (CI uses `examples/fixtures/live-feeds`). Values are labeled "Saved copy". |
 | `PREMISE_LLM_PROVIDER` | `anthropic` or `openai`. Unset: `ANTHROPIC_API_KEY` first, then `OPENAI_API_KEY`. |
 | `ANTHROPIC_API_KEY` | Language-model extraction via the Anthropic Messages API, default model `claude-haiku-5-5` (ignored in demo mode). |
 | `OPENAI_API_KEY` | Language-model extraction via the OpenAI Responses API, default model `gpt-6-luna` (ignored in demo mode). |
@@ -101,7 +102,7 @@ CLI flags: `check`, `scan`, `backtest`, `replay`, `--scenario`, `--steps`, `--sh
 ## 6. Tests & CI
 - `src/__tests__/*.test.ts` cover the evaluator and probes, scanners, locus apply / rollback, cascades, the PR bot, backtests, connectors and dispatchers, FinOps and the synthesizer, topology, the palette, the tour and public demo mode.
 - `bunfig.toml` preloads `src/__tests__/setup/isolate-test-env.ts`: it scrubs `PREMISE_*`, `OPENAI_*`, `GITHUB_*`, `SLACK_*`, `PAGERDUTY_*` env vars, creates a fresh temp folder per run, points HOME, `PREMISE_DB_PATH`, `PREMISE_WORKSPACE_ROOT` and `PREMISE_SANDBOX_DIR` at it, and copies `examples/demo-repo` there. Tests must never write `./premise.db` or files in the checkout.
-- `.github/workflows/premise-ci.yml` runs `bun test`, `scan`, `backtest --scenario historical` and `check`.
+- `.github/workflows/premise-ci.yml` runs `bun test`, `scan`, `backtest --scenario historical` and `check --expect-broken upstream_llm_input_cost_usd` with `PREMISE_FEED_FIXTURE_DIR=examples/fixtures/live-feeds`. CI never reaches the internet: ADR-014 reads a saved copy of the real OpenRouter response (2026-10-27, $2.00 per 1M tokens), at which its "> $2.00" premise is really BROKEN, and the step expects exactly that. The live site fetches the real price. Refresh the saved copy (and the expectation) when the real price changes.
 
 ## 7. History
 - `docs/history/original-gemini-build-prompt.md`: the original build prompt.

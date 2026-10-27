@@ -22,6 +22,13 @@ export function liveSourceLabel(url: string): string {
   return `${LIVE_SOURCE_PREFIX}${url}`;
 }
 
+// A real response saved earlier and replayed offline (CI)
+const SAVED_SOURCE_PREFIX = "saved:";
+
+export function savedSourceLabel(url: string): string {
+  return `${SAVED_SOURCE_PREFIX}${url}`;
+}
+
 export function isLiveSource(source: string | null | undefined): boolean {
   return Boolean(source && source.startsWith(LIVE_SOURCE_PREFIX));
 }
@@ -41,11 +48,12 @@ const DEMO_SOURCE_PREFIXES = [
   "historical",
 ];
 
-/** live: fetched from a real outside source. reported: pushed in by someone. demo: made up by this app. */
+/** live: fetched from a real outside source. saved: a real response saved earlier. reported: pushed in by someone. demo: made up by this app. */
 export function classifyValueSource(
   source: string | null | undefined
-): "live" | "reported" | "demo" {
+): "live" | "saved" | "reported" | "demo" {
   if (isLiveSource(source)) return "live";
+  if (source && source.startsWith(SAVED_SOURCE_PREFIX)) return "saved";
   if (!source || DEMO_SOURCE_PREFIXES.some((prefix) => source.startsWith(prefix))) {
     return "demo";
   }

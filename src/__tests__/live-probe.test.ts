@@ -12,6 +12,15 @@ import {
   liveSourceUrl,
 } from "../lib/live-feeds";
 import { PremiseRecord } from "../lib/types";
+import { compareBrokenToExpected } from "../lib/expected-outcome";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+// Read-only: the saved OpenRouter copy that CI uses
+const FIXTURE_DIR = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../examples/fixtures/live-feeds"
+);
 
 const LIVE_PREMISE = "prem-adr-014-cost";
 
@@ -50,12 +59,14 @@ beforeEach(() => {
   calls = [];
   clearLiveFeedCache();
   delete process.env.PREMISE_PUBLIC_DEMO;
+  delete process.env.PREMISE_FEED_FIXTURE_DIR;
   resetDatabaseToSeed();
 });
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
   delete process.env.PREMISE_PUBLIC_DEMO;
+  delete process.env.PREMISE_FEED_FIXTURE_DIR;
   clearLiveFeedCache();
 });
 
@@ -169,5 +180,62 @@ describe("Public demo outside-fetch allowlist", () => {
     mockFetch(() => Response.json(openRouterBody("0.0000025")));
     await executeActiveProbes({ premiseId: target.id });
     expect(calls).toEqual([]);
+  });
+});
+
+describe("Offline feed mode for CI (saved OpenRouter copy)", () => {
+  test("reads the saved copy, never the network, and labels it saved", async () => {
+    process.env.PREMISE_FEED_FIXTURE_DIR = FIXTURE_DIR;
+    mockFetch(() => {
+      throw new Error("network must not be used in offline feed mode");
+    });
+    await executeActiveProbes({ premiseId: LIVE_PREMISE });
+
+    const p = premise(LIVE_PREMISE);
+    expect(calls).toEqual([]);
+    expect(p.currentValue).toBe("2");
+    expect(p.status).toBe("BROKEN");
+    expect(p.valueSource).toBe(`saved:${OPENROUTER_MODELS_URL}`);
+    expect(isLiveSource(p.valueSource)).toBe(false);
+    expect(p.valueObservedAt).toBe("2026-10-27T02:38:57.000Z");
+  });
+
+  test("a URL with no saved copy is an error, not a number", async () => {
+    const target = premise("prem-gtm-q3-cac");
+    updatePremiseAndProbeConfig({
+      premiseId: target.id,
+      operator: target.operator,
+      thresholdValue: target.thresholdValue,
+      decayWarningMargin: target.decayWarningMargin,
+      targetUrlOrQuery: "https://example.com/metrics.json",
+    });
+    process.env.PREMISE_FEED_FIXTURE_DIR = FIXTURE_DIR;
+    await executeActiveProbes({ premiseId: target.id });
+    const after = premise(target.id);
+    expect(after.currentValue).toBe(target.currentValue);
+    expect(after.probes[0].lastError).toContain("no saved copy");
+  });
+});
+
+describe("check --expect-broken", () => {
+  const broken = [{ id: "prem-adr-014-cost", variableName: "upstream_llm_input_cost_usd" }];
+
+  test("passes when exactly the expected premises are broken (by id or variable)", () => {
+    expect(compareBrokenToExpected(broken, ["upstream_llm_input_cost_usd"]).ok).toBe(true);
+    expect(compareBrokenToExpected(broken, ["prem-adr-014-cost"]).ok).toBe(true);
+  });
+
+  test("fails when an expected premise holds or another one breaks", () => {
+    expect(compareBrokenToExpected([], ["upstream_llm_input_cost_usd"])).toEqual({
+      ok: false,
+      missing: ["upstream_llm_input_cost_usd"],
+      unexpected: [],
+    });
+    const extra = [...broken, { id: "prem-gtm-q3-cac", variableName: "blended_search_cac_usd" }];
+    expect(compareBrokenToExpected(extra, ["upstream_llm_input_cost_usd"])).toEqual({
+      ok: false,
+      missing: [],
+      unexpected: ["prem-gtm-q3-cac"],
+    });
   });
 });

@@ -1,0 +1,10 @@
+{
+  "about": "Saved copies of outside feeds. CI runs `check` against these (PREMISE_FEED_FIXTURE_DIR) so it never needs the internet. The live site always fetches the real feed.",
+  "feeds": {
+    "https://openrouter.ai/api/v1/models": {
+      "file": "openrouter-models-2026-10-27.json",
+      "fetchedAt": "2026-10-27T02:38:57.000Z",
+      "note": "Real GET response from 2026-10-27 02:38:57 UTC (HTTP Date header), trimmed to the anthropic/* entries. Values unchanged: anthropic/claude-sonnet-5.5 pricing.prompt = \"0.000002\"."
+    }
+  }
+}

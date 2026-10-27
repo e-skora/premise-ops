@@ -64,7 +64,9 @@ import {
   isLiveSource,
   isOutsideUrl,
   liveSourceLabel,
+  savedSourceLabel,
 } from "@/lib/live-feeds";
+import { loadSavedFeed, savedFeedDir } from "@/lib/saved-feeds";
 
 /**
  * Database file location. PREMISE_DB_PATH wins; the ./premise.db fallback is
@@ -1501,7 +1503,9 @@ async function runOutsideHttpProbe(
     return;
   }
 
-  const res = await fetchLiveJson(url);
+  // CI reads a saved copy instead of the internet (PREMISE_FEED_FIXTURE_DIR)
+  const fixtureDir = savedFeedDir();
+  const res = fixtureDir ? loadSavedFeed(url, fixtureDir) : await fetchLiveJson(url);
   if (!res.ok) {
     recordError(res.error, res.latencyMs);
     return;
@@ -1527,7 +1531,7 @@ async function runOutsideHttpProbe(
   evaluateAndPersistMetricUpdate({
     premiseId: probe.premiseId,
     value,
-    source: liveSourceLabel(url),
+    source: fixtureDir ? savedSourceLabel(url) : liveSourceLabel(url),
     observedAt: res.fetchedAt,
     latencyMs: res.latencyMs,
     fromProbeId: probe.id,
@@ -1535,6 +1539,7 @@ async function runOutsideHttpProbe(
       url,
       fetchedAt: res.fetchedAt,
       servedFromCache: res.fromCache,
+      ...(fixtureDir ? { savedCopy: true } : {}),
       jsonPath: probe.jsonPath,
       extracted: found,
       valueMultiplier: multiplier,

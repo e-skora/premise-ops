@@ -78,6 +78,20 @@ export default function PremiseSourceBadge({ premise }: { premise: PremiseRecord
     );
   }
 
+  if (classifyValueSource(premise.valueSource) === "saved") {
+    return (
+      <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-mono text-zinc-400">
+        <span className="px-1.5 py-0.5 bg-violet-500/10 text-violet-300 border border-violet-500/30 font-semibold uppercase">
+          Saved copy
+        </span>
+        <span>
+          From a saved copy of {premise.valueSource!.slice("saved:".length)} fetched{" "}
+          {formatUtc(premise.valueObservedAt)}
+        </span>
+      </div>
+    );
+  }
+
   if (classifyValueSource(premise.valueSource) === "reported") {
     return (
       <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-mono text-zinc-400">
