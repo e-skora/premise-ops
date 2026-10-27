@@ -26,3 +26,21 @@ export function compareBrokenToExpected(
     .map((p) => p.id);
   return { ok: missing.length === 0 && unexpected.length === 0, missing, unexpected };
 }
+
+/**
+ * Exit code for `check`. A decision with no data was never checked, so it
+ * fails the run instead of letting it pass quietly.
+ */
+export function decideCheckExit(input: {
+  brokenCount: number;
+  invalidatedCount: number;
+  decayingCount: number;
+  noDataCount: number;
+  strict: boolean;
+  expectation: ExpectedBrokenResult | null;
+}): 0 | 1 {
+  if (input.noDataCount > 0) return 1;
+  if (input.strict && input.decayingCount > 0) return 1;
+  if (input.expectation) return input.expectation.ok ? 0 : 1;
+  return input.brokenCount > 0 || input.invalidatedCount > 0 ? 1 : 0;
+}

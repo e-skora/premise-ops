@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { compareBrokenToExpected } from "../src/lib/expected-outcome";
+import { compareBrokenToExpected, decideCheckExit } from "../src/lib/expected-outcome";
 import {
   applyLocusPatchAndRecordBackup,
   dispatchInvalidationAlert,
@@ -78,6 +78,9 @@ function formatStatusBadge(status: string): string {
     case "BROKEN":
     case "INVALIDATED":
       return `${ANSI.rose}${ANSI.bold}✖ ${status}${ANSI.reset}`;
+    case "NO_DATA":
+    case "UNBOUND":
+      return `${ANSI.zinc}${ANSI.bold}○ ${status === "NO_DATA" ? "NO DATA" : status}${ANSI.reset}`;
     default:
       return `${ANSI.zinc}${status}${ANSI.reset}`;
   }
@@ -918,6 +921,7 @@ async function main() {
     (a) => a.status === "INVALIDATED"
   );
   const cascadedArtifacts = artifacts.filter((a) => Boolean(a.cascadedFromId));
+  const noDataArtifacts = artifacts.filter((a) => a.status === "NO_DATA");
 
   // Optional live teardown patch application (--apply)
   const appliedLoci: string[] = [];
@@ -954,12 +958,14 @@ async function main() {
   const expectation = expectedBroken
     ? compareBrokenToExpected(brokenPremises, expectedBroken)
     : null;
-  const shouldFail = expectation
-    ? !expectation.ok || (isStrict && decayingPremises.length > 0)
-    : brokenPremises.length > 0 ||
-      invalidatedArtifacts.length > 0 ||
-      (isStrict && decayingPremises.length > 0);
-  const exitCode = shouldFail ? 1 : 0;
+  const exitCode = decideCheckExit({
+    brokenCount: brokenPremises.length,
+    invalidatedCount: invalidatedArtifacts.length,
+    decayingCount: decayingPremises.length,
+    noDataCount: noDataArtifacts.length,
+    strict: isStrict,
+    expectation,
+  });
 
   const finOpsLedger = calculateFinOpsLedger(artifacts, allEvents);
 
@@ -984,6 +990,7 @@ async function main() {
             decayingPremises: decayingPremises.length,
             brokenPremises: brokenPremises.length,
             invalidatedDecisions: invalidatedArtifacts.length,
+            noDataDecisions: noDataArtifacts.length,
             cascadedInvalidations: cascadedArtifacts.length,
           },
           artifacts: artifacts.map((a) => ({
@@ -1231,10 +1238,28 @@ async function main() {
     console.log(
       `\n${ANSI.bgAmber}${ANSI.bold}${ANSI.white} ⚠️  STRICT MODE FAILURE: ${decayingPremises.length} PREMISE(S) IN DECAY WARNING BAND ${ANSI.reset}`
     );
+  } else if (noDataArtifacts.length > 0) {
+    // Printed below; never claim everything holds when something was not checked
   } else {
     console.log(
       `\n${ANSI.bgEmerald}${ANSI.bold}${ANSI.white} ✔ ALL LOAD-BEARING ARCHITECTURAL & STRATEGIC PREMISES HOLDING TRUE (EXIT 0) ${ANSI.reset}\n`
     );
+  }
+
+  if (noDataArtifacts.length > 0) {
+    console.log(
+      `\n${ANSI.rose}${ANSI.bold}✖ NO DATA: ${noDataArtifacts.length} decision(s) have no value yet, so they were not checked. Exit 1.${ANSI.reset}`
+    );
+    for (const art of noDataArtifacts) {
+      for (const p of art.premises) {
+        const probe = p.probes[0];
+        const reason = !probe || probe.status === "UNBOUND" || !probe.targetUrlOrQuery
+          ? "no probe connected"
+          : probe.lastError || "the probe returned no value";
+        console.log(`  • ${art.title}: ${p.variableName} (${reason})`);
+      }
+    }
+    console.log("");
   }
 
   if (expectation) {
