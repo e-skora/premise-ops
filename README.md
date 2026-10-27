@@ -46,8 +46,8 @@ Decommission $450/mo Pinecone pod reservation and revert to local Postgres pgvec
 - The first `# ` heading is the title.
 - `**Locus:**` names the code the decision protects, as `path:Lstart-Lend`.
 - A `## Blast Radius` (or `## Sunset`) section says what to remove when a premise breaks.
-- `bun ./bin/premise-cli.ts scan --repo` finds these files. It reads the blast radius only from the rest of the line after the words "Blast Radius" or "Sunset Criteria", so for that reader write it on one line, like `**Blast Radius:** remove the Pinecone index`.
-- You can also paste an ADR into "Compile Decision" in the web app. It reads the whole Blast Radius section and also understands plain words like "under 450 USD per month" or "at least 60%".
+- `bun ./bin/premise-cli.ts scan --repo` finds these files.
+- You can also paste an ADR into "Compile Decision" in the web app, which also understands plain words like "under 450 USD per month" or "at least 60%".
 
 ### As a comment in code
 
@@ -68,7 +68,8 @@ Put a block of `@premise` comments in the first 40 lines of a file under `packag
 | `metric` | Required. `variable_name <op> number unit`, optionally followed by `(margin: 0.12)`. A `current:` value is ignored: a comment is not a measurement. |
 | `type` | `ADR` (default), `GITHUB_PR`, `STRATEGY_MEMO` or `VENDOR_CONTRACT`. |
 | `claim` | The premise in plain words. |
-| `probe` | `PROBE_TYPE \| query or URL`: where the real value comes from. |
+| `probe` | `PROBE_TYPE \| query or URL`: where the real value comes from. A probe written here is connected and runs on every check. |
+| `jsonPath` | For JSON URLs, where the number sits, like `$.data.price` or `$.data[?(@.id=="x")].price`. Default: `$.metrics.<variable_name>`. |
 | `blastRadius` | What to remove when the premise breaks. |
 
 A file can instead point at a decision that already exists with `@premise-locus`, plus optional `Bound to:` and `Blast Radius:` lines. From [`examples/demo-repo/packages/llm-gateway/src/semantic-cache.ts`](examples/demo-repo/packages/llm-gateway/src/semantic-cache.ts):
@@ -85,7 +86,7 @@ A file can instead point at a decision that already exists with `@premise-locus`
 
 Operators: `<`, `<=`, `>`, `>=`, `==` (or `=`), `!=`.
 
-A premise is **BROKEN** when its value fails the comparison, and **DECAYING** when it still passes but sits within the margin of the threshold (the margin is a fraction of the threshold, so `0.12` means 12%). Otherwise it is **VALID**. Until a probe or a person reports a value it is **UNBOUND** ("No value yet"). A decision is **INVALIDATED** when any premise breaks (or all of them, if you switch it to the `ALL` gate), and that spreads to the decisions that depend on it.
+A premise is **BROKEN** when its value fails the comparison, and **DECAYING** when it still passes but sits within the margin of the threshold (the margin is a fraction of the threshold, so `0.12` means 12%). Otherwise it is **VALID**. Until a probe or a person reports a value it is **UNBOUND** ("No value yet"), and a decision with no values at all shows **No data**, never HEALTHY. A decision is **INVALIDATED** when any premise breaks (or all of them, if you switch it to the `ALL` gate), and that spreads to the decisions that depend on it.
 
 ### Probe types
 
@@ -94,36 +95,53 @@ A premise is **BROKEN** when its value fails the comparison, and **DECAYING** wh
 | `HTTP_JSON_PATH` | Fetches a JSON URL and reads one field. |
 | `SQL_METRIC` | A read-only SQL query against Premise's own database. |
 | `PROMQL` | A real Prometheus server when one is connected in the app; otherwise a PromQL subset (`avg_over_time`, `rate`, `quantile_over_time`, label selectors, arithmetic) over Premise's own stored samples. |
-| `DATADOG_METRIC` | The Datadog Metric API, once connected in the app. Not accepted in `@premise` comments yet. |
+| `DATADOG_METRIC` | The Datadog Metric API, once Datadog is connected in the app. |
 | `WEBHOOK_INGEST` | Whatever you `POST` to `/api/webhooks/metric`. |
 | `WEB_SCRAPE_EXTRACT` | Accepted, but there is no scraper yet: it reads the last stored value. |
 
 ## CI
 
-`bun ./bin/premise-cli.ts check` runs the probes, judges every premise, and exits `1` when a load-bearing premise is BROKEN. `--expect-broken <ids>` passes only when exactly those premises are broken.
+`bun ./bin/premise-cli.ts check` runs the probes and judges every premise. It exits `1` when a load-bearing premise is BROKEN, and also when a decision has no data, with the reason (no probe connected, or what the probe got back). `--expect-broken <ids>` passes only when exactly those premises are broken.
 
-This repo checks itself with [`.github/workflows/premise-ci.yml`](.github/workflows/premise-ci.yml). The core of it:
+### In your own repo
+
+Write your premises as `@premise` comments with a `probe` (and a `jsonPath` for JSON URLs), then add this as `.github/workflows/premise.yml`:
 
 ```yaml
+name: Premise
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 * * * *" # numbers change even when your code does not
 jobs:
-  premise-assertions:
+  premise:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          repository: e-skora/premise
+          path: .premise
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
-      - run: bun install --frozen-lockfile || bun install
-      - run: bun ./bin/premise-cli.ts scan
-      # CI has no live internet: ADR-014 reads a saved copy of the real
-      # OpenRouter price ($2.00 per 1M tokens). At that price its "> $2.00"
-      # premise is really BROKEN, so the step expects exactly that.
+      - run: bun install --frozen-lockfile
+        working-directory: .premise
       - env:
-          PREMISE_FEED_FIXTURE_DIR: examples/fixtures/live-feeds
-        run: bun ./bin/premise-cli.ts check --expect-broken upstream_llm_input_cost_usd
+          PREMISE_DB_PATH: ${{ runner.temp }}/premise.db
+        run: |
+          bun .premise/bin/premise-cli.ts scan --import
+          bun .premise/bin/premise-cli.ts check
 ```
 
-Pointing this at your own repo does not work yet. The status section says why.
+It checks Premise out into `.premise/`, imports your comments into a fresh database (your decisions only, never the demo ones), runs every probe, and fails the build when a premise breaks or has no data. Use comments rather than ADR files here: an ADR line has no place to name a probe, so an imported ADR premise has no data until you connect a probe in the web app.
+
+These exact steps were run by hand on a scratch repo with one `@premise` comment and a local price feed: a broken price exits `1`, a price that holds exits `0`, and a feed that is down or a comment with no probe exits `1` with "No data". This repo's own CI also runs the two commands on every push against a stand-in repo, [`examples/user-repo`](examples/user-repo). The two `actions/checkout` steps follow the [checkout docs](https://github.com/actions/checkout#checkout-multiple-repos-nested) but have not yet been run from another repo on GitHub.
+
+### This repo
+
+This repo checks itself with [`.github/workflows/premise-ci.yml`](.github/workflows/premise-ci.yml). CI has no live internet: ADR-014 reads a saved copy of the real OpenRouter price ($2.00 per 1M tokens), at which its "> $2.00" premise is really BROKEN, so the step runs `check --expect-broken upstream_llm_input_cost_usd` and passes only on exactly that result.
 
 ## Status: early stage
 
@@ -132,15 +150,8 @@ Pointing this at your own repo does not work yet. The status section says why.
 - PromQL without a connected Prometheus server is a subset that runs on Premise's own stored samples.
 - GitHub PRs, Slack and PagerDuty are drafted as dry runs unless you set tokens. A dry run never shows a PR number or link.
 - Language-model extraction in "Compile Decision" was tested with one real Anthropic call. OpenAI extraction has only been tested with a mocked response. Without a key, a basic parser is used and the app says so.
-- Not on npm. You run it from a clone.
-
-Running it in CI for your own repo is not ready. Tested by hand on a scratch repo with `PREMISE_WORKSPACE_ROOT` pointing at it:
-
-- What works: `scan --repo` finds your ADRs and `@premise` comments, and `scan --import` adds the comments to the database.
-- Every database also gets the demo decisions, so `check` judges them too and fails on ADR-014.
-- A probe written in an `@premise` comment is saved as "not connected" and never runs. You have to connect it in the web app.
-- A decision whose premises have no value yet shows HEALTHY, so a passing check can mean "no data".
-- One route works today: `check --artifact <decision id> --mutate variable_name=<value>`, with a value you fetched yourself, exits `1` when the value breaks the premise and `0` when it holds. But the decision id is new every time you import.
+- Not on npm. You run it from a clone, or check it out next to your repo in CI.
+- `WEB_SCRAPE_EXTRACT` has no scraper yet.
 
 To host your own copy, see [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 

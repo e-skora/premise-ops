@@ -3,7 +3,7 @@
 ## 1. System Overview
 **Premise** (`https://premise-ops.com`, "CI/CD for Architectural & Strategic Decisions") is an executable decision-assertion engine and garbage collector for outdated architectural and strategic constraints. It ingests ADRs, GitHub PRs, strategy memos and vendor contracts, compiles their natural-language assumptions into premises with suggested probes, evaluates them against telemetry once a probe is connected, and drafts teardown diffs and outbound alerts when load-bearing premises break.
 
-Honesty rules the code follows: a premise has no value (status `UNBOUND`) until a probe or a person reports one; every value records where it came from (`Premise.valueSource`, `valueObservedAt`) and the UI labels it Live, Reported, Demo data or No value yet; dispatches are `SENT`, `DRY_RUN` or `FAILED` and never carry an invented PR number or link. In the demo, one premise is live: ADR-014's cost premise reads the real Claude Sonnet 5.5 input price from OpenRouter. The other seeded premises are demo data.
+Honesty rules the code follows: a premise has no value (status `UNBOUND`) until a probe or a person reports one; a decision with no values at all is `NO_DATA` (shown as "No data", never HEALTHY), and `check` exits `1` on it; every value records where it came from (`Premise.valueSource`, `valueObservedAt`) and the UI labels it Live, Reported, Demo data or No value yet; dispatches are `SENT`, `DRY_RUN` or `FAILED` and never carry an invented PR number or link. In the demo, one premise is live: ADR-014's cost premise reads the real Claude Sonnet 5.5 input price from OpenRouter. The other seeded premises are demo data.
 
 ## 2. Running It
 Make sure `node` (v22+) and `bun` are on PATH.
@@ -16,7 +16,7 @@ Make sure `node` (v22+) and `bun` are on PATH.
 | Prove tests leave the checkout alone | `scripts/check-test-isolation.sh` |
 | Type-check | `npx tsc --noEmit` |
 | Production build | `bun run build` |
-| CI assertions | `bun ./bin/premise-cli.ts check` (exits `1` when a load-bearing premise is `BROKEN`; `--expect-broken <ids>` passes only when exactly those premises are broken) |
+| CI assertions | `bun ./bin/premise-cli.ts check` (exits `1` when a load-bearing premise is `BROKEN` or a decision is `NO_DATA`; `--expect-broken <ids>` passes only when exactly those premises are broken and nothing is `NO_DATA`) |
 | Codebase scan | `bun ./bin/premise-cli.ts scan` |
 | Backtest | `bun ./bin/premise-cli.ts backtest --scenario historical` |
 | Deploy (manual only) | `fly deploy --remote-only --ha=false` (see `docs/DEPLOYMENT.md`) |
@@ -42,6 +42,7 @@ CLI flags: `check`, `scan`, `backtest`, `replay`, `--scenario`, `--steps`, `--sh
 - Zero-config local SQLite in WAL mode via `src/db/index.ts`. That file holds the real schema (`initSchema`); `docs/history/schema-reference.prisma` is reference only.
 - Dual-runtime loader `createSqliteInstance`: `node:sqlite` (`DatabaseSync`) under Node, `bun:sqlite` under Bun. Both are externalized in `next.config.mjs`.
 - `getDb()` returns the visitor's sandbox database when a demo request is running (`src/db/sandbox-context.ts`), otherwise the shared database.
+- Demo decisions only go into a demo database: public demo sandboxes always, the shared database only when the workspace root holds `examples/demo-repo` (`workspaceHasDemoRepo`). Pointed at someone else's repo, the database starts empty and holds only what `scan --import` brings in.
 
 ## 4. Public Demo Mode (`PREMISE_PUBLIC_DEMO=1`)
 - `src/middleware.ts` gives each visitor a `premise_sandbox` cookie. `src/lib/demo-sandbox.ts` copies a seeded template into `/tmp/premise-sandboxes/<id>.db`, deletes sandboxes older than 24 hours and caps the total at 500 (oldest first).
@@ -67,7 +68,7 @@ CLI flags: `check`, `scan`, `backtest`, `replay`, `--scenario`, `--steps`, `--sh
 - `telemetry-connectors.ts`: Prometheus/Thanos instant and range queries (Bearer, Basic, tenant headers) and Datadog Metric API v2 with v1 fallback, plus connection tests.
 - `outbound-dispatchers.ts`: Slack Block Kit alerts and PagerDuty Events v2; results are `SENT`, `DRY_RUN` or `FAILED`.
 - `locus-inspector.ts`: reads real files at a `targetLocus`, builds `git apply`-ready diffs, applies and rolls back teardowns (`LocusBackup`), and finds multi-file caller blast radius.
-- `codebase-scanner.ts`: finds inline `@premise` / `@premise-locus` annotations under `packages/ services/ infra/ ops/` at the workspace root and inside `examples/demo-repo/`.
+- `codebase-scanner.ts`: finds inline `@premise` / `@premise-locus` annotations under `packages/ services/ infra/ ops/` at the workspace root and inside `examples/demo-repo/`. A `probe:` with a source imports as `ACTIVE` and runs; `jsonPath:` says where the number sits in a JSON response.
 - `repo-scanner.ts`: scans ADR folders, dependency manifests (`HEAVY_DEPENDENCY_CATALOG`) and inline premises into a deduplicated inbox; converts findings to `CompiledArtifactOutput`.
 - `github-pr-bot.ts`: teardown branch names, PR body markdown, `gh pr create` commands, local branch creation; opens the PR only with a GitHub token, otherwise returns `DRY_RUN` with no PR number or link.
 - `backtest-engine.ts`: scenario presets, deterministic time-series generator, resilience scoring (HIGH / MODERATE / BRITTLE), threshold buffer advisor, replay with cascade propagation.
@@ -102,7 +103,7 @@ CLI flags: `check`, `scan`, `backtest`, `replay`, `--scenario`, `--steps`, `--sh
 ## 6. Tests & CI
 - `src/__tests__/*.test.ts` cover the evaluator and probes, scanners, locus apply / rollback, cascades, the PR bot, backtests, connectors and dispatchers, FinOps and the synthesizer, topology, the palette, the tour and public demo mode.
 - `bunfig.toml` preloads `src/__tests__/setup/isolate-test-env.ts`: it scrubs `PREMISE_*`, `OPENAI_*`, `GITHUB_*`, `SLACK_*`, `PAGERDUTY_*` env vars, creates a fresh temp folder per run, points HOME, `PREMISE_DB_PATH`, `PREMISE_WORKSPACE_ROOT` and `PREMISE_SANDBOX_DIR` at it, and copies `examples/demo-repo` there. Tests must never write `./premise.db` or files in the checkout.
-- `.github/workflows/premise-ci.yml` runs `bun test`, `scan`, `backtest --scenario historical` and `check --expect-broken upstream_llm_input_cost_usd` with `PREMISE_FEED_FIXTURE_DIR=examples/fixtures/live-feeds`. CI never reaches the internet: ADR-014 reads a saved copy of the real OpenRouter response (2026-10-27, $2.00 per 1M tokens), at which its "> $2.00" premise is really BROKEN, and the step expects exactly that. The live site fetches the real price. Refresh the saved copy (and the expectation) when the real price changes.
+- `.github/workflows/premise-ci.yml` runs `bun test`, `scan`, `backtest --scenario historical` and `check --expect-broken upstream_llm_input_cost_usd` with `PREMISE_FEED_FIXTURE_DIR=examples/fixtures/live-feeds`. A second job, `user-repo-check`, runs `scan --import` and `check` against the stand-in repo `examples/user-repo` (empty database, its `@premise` probe reads the saved OpenRouter copy and holds) and must exit `0`. CI never reaches the internet: ADR-014 reads a saved copy of the real OpenRouter response (2026-10-27, $2.00 per 1M tokens), at which its "> $2.00" premise is really BROKEN, and the step expects exactly that. The live site fetches the real price. Refresh the saved copy (and the expectation) when the real price changes.
 
 ## 7. History
 - `docs/history/original-gemini-build-prompt.md`: the original build prompt.
