@@ -603,7 +603,10 @@ async function runBacktestCommand(args: string[]) {
       const startVal = p.steps[0]?.simulatedValue ?? p.initialValue;
       const endVal =
         p.steps[p.steps.length - 1]?.simulatedValue ?? p.initialValue;
-      const trajectoryStr = `${startVal} ─▶ ${endVal}${unitShort}`;
+      const trajectoryStr =
+        startVal === null || endVal === null
+          ? "no data yet"
+          : `${startVal} ─▶ ${endVal}${unitShort}`;
       const boundStr = `${opSym} ${p.thresholdValue}${unitShort}`;
 
       const resColor =

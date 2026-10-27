@@ -375,7 +375,8 @@ export interface ReplayStepSnapshot {
   timestamp: string;
   premiseId: string;
   variableName: string;
-  simulatedValue: number;
+  /** Null when the premise has no data to replay */
+  simulatedValue: number | null;
   status: PremiseStatus;
   driftPercent: number;
   isBreached: boolean;
@@ -390,7 +391,8 @@ export interface PremiseBacktestResult {
   claim: string;
   operator: Operator;
   thresholdValue: string;
-  initialValue: number;
+  /** Null when the premise has no reported value */
+  initialValue: number | null;
   unit: string;
   steps: ReplayStepSnapshot[];
   survivalRatePct: number;

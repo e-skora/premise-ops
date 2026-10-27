@@ -214,7 +214,10 @@ export function TimeMachineModal({
 
   // Trajectory SVG Chart Coordinate Calculations
   const chartPoints = activePremise ? activePremise.steps : [];
-  const allSimValues = chartPoints.map((p) => p.simulatedValue);
+  // Premises with no data have null values and draw no line
+  const allSimValues = chartPoints
+    .map((p) => p.simulatedValue)
+    .filter((v): v is number => v !== null);
   const thrNum = activePremise ? Number(activePremise.thresholdValue) : 0;
   const minVal = Math.min(...allSimValues, thrNum * 0.85);
   const maxVal = Math.max(...allSimValues, thrNum * 1.15, 1);
@@ -238,14 +241,19 @@ export function TimeMachineModal({
   };
 
   const polylinePoints = chartPoints
-    .map((p, idx) => `${getSvgX(idx)},${getSvgY(p.simulatedValue)}`)
+    .map((p, idx) =>
+      p.simulatedValue === null ? null : `${getSvgX(idx)},${getSvgY(p.simulatedValue)}`
+    )
+    .filter(Boolean)
     .join(" ");
 
   const thresholdY = getSvgY(thrNum);
   const currentNeedleX = getSvgX(currentStep);
-  const currentNeedleY = chartPoints[currentStep]
-    ? getSvgY(chartPoints[currentStep].simulatedValue)
-    : thresholdY;
+  const currentNeedleValue = chartPoints[currentStep]?.simulatedValue;
+  const currentNeedleY =
+    currentNeedleValue !== undefined && currentNeedleValue !== null
+      ? getSvgY(currentNeedleValue)
+      : thresholdY;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-200">
@@ -518,7 +526,7 @@ export function TimeMachineModal({
                     <span>
                       At Tick #{currentStep}:{" "}
                       <span className="text-zinc-100 font-bold">
-                        {activeStepSnapshot?.simulatedValue}{" "}
+                        {activeStepSnapshot?.simulatedValue ?? "No data"}{" "}
                         {activePremise?.unit}
                       </span>
                     </span>
@@ -698,7 +706,7 @@ export function TimeMachineModal({
                         return (
                           <div
                             key={idx}
-                            title={`Step ${idx}: ${s.simulatedValue} (${s.status})`}
+                            title={`Step ${idx}: ${s.simulatedValue ?? "no data"} (${s.status})`}
                             onClick={() => setCurrentStep(idx)}
                             className={`flex-1 cursor-pointer transition-all ${
                               s.status === "VALID"

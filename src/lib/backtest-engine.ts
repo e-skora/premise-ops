@@ -136,7 +136,19 @@ export function generatePremiseReplaySeries(params: {
     seed = 42,
   } = params;
 
-  const baseVal = Number(premise.currentValue) || 1.0;
+  // No reported value and no history: nothing to replay, never an invented baseline
+  const hasValue = String(premise.currentValue ?? "").trim() !== "";
+  if (
+    !hasValue &&
+    (premise.metricSamples || []).length === 0 &&
+    !(SEED_HISTORICAL_SERIES[premise.id] || []).length
+  ) {
+    return [];
+  }
+
+  const baseVal = hasValue
+    ? Number(premise.currentValue)
+    : (premise.metricSamples || []).at(-1)?.value ?? SEED_HISTORICAL_SERIES[premise.id]!.at(-1)!;
   const rand = seededRandom(seed + premise.id.length * 17);
 
   // 1. Historical Replay Scenario
@@ -559,10 +571,12 @@ export function runBacktestSimulation(
     const premiseStatusAtStep = new Map<string, PremiseStatus>();
     for (const art of targetArtifacts) {
       for (const p of art.premises) {
-        const series = premiseSeriesMap.get(p.id) || [Number(p.currentValue)];
-        const simVal = series[step] ?? Number(p.currentValue);
+        const series = premiseSeriesMap.get(p.id) || [];
+        const simVal: number | null =
+          series.length === 0 ? null : series[step] ?? series[series.length - 1];
+        // A premise with no data stays UNBOUND for the whole replay
         const evalRes = evaluatePremiseState(
-          simVal,
+          simVal ?? "",
           p.operator,
           p.thresholdValue,
           p.decayWarningMargin
@@ -655,9 +669,12 @@ export function runBacktestSimulation(
         decayWarningMargin: p.decayWarningMargin,
       });
 
-      const simVals = snaps.map((s) => s.simulatedValue);
-      const minSim = Math.min(...simVals);
-      const maxSim = Math.max(...simVals);
+      const simVals = snaps
+        .map((s) => s.simulatedValue)
+        .filter((v): v is number => v !== null);
+      const thresholdNum = Number(p.thresholdValue);
+      const minSim = simVals.length ? Math.min(...simVals) : thresholdNum;
+      const maxSim = simVals.length ? Math.max(...simVals) : thresholdNum;
 
       const thresholdAdvice = calculateRecommendedThreshold({
         operator: p.operator,
@@ -687,7 +704,7 @@ export function runBacktestSimulation(
         claim: p.claim,
         operator: p.operator,
         thresholdValue: p.thresholdValue,
-        initialValue: Number(p.currentValue),
+        initialValue: String(p.currentValue ?? "").trim() ? Number(p.currentValue) : null,
         unit: p.unit,
         steps: snaps,
         survivalRatePct: metrics.survivalRatePct,
