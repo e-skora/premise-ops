@@ -241,7 +241,8 @@ function parseFileForInlinePremise(
           candidateType === "PROMQL" ||
           candidateType === "HTTP_JSON_PATH" ||
           candidateType === "WEBHOOK_INGEST" ||
-          candidateType === "WEB_SCRAPE_EXTRACT"
+          candidateType === "WEB_SCRAPE_EXTRACT" ||
+          candidateType === "DATADOG_METRIC"
         ) {
           probeType = candidateType as ProbeType;
         } else if (candidateType === "SQL_QUERY") {
@@ -287,6 +288,7 @@ function parseFileForInlinePremise(
       decayWarningMargin,
       probeType,
       targetUrlOrQuery,
+      jsonPath: tags.jsonpath || `$.metrics.${variableName}`,
       blastRadius:
         tags.blastradius ||
         `Decommission obsolete implementation in ${targetLocus}`,
@@ -352,6 +354,7 @@ function parseFileForInlinePremise(
           primaryPremise?.probes[0]?.probeType || "HTTP_JSON_PATH",
         targetUrlOrQuery:
           primaryPremise?.probes[0]?.targetUrlOrQuery || "",
+        jsonPath: primaryPremise?.probes[0]?.jsonPath,
         blastRadius:
           matchedArt?.blastRadius ||
           blastLine.replace(/^(?:\s*\/\/|\s*#)\s*Blast Radius:\s*/i, "").trim(),
@@ -410,8 +413,10 @@ ${item.blastRadius}`;
         recommendedProbe: {
           probeType: item.probeType,
           targetUrlOrQuery: item.targetUrlOrQuery,
-          jsonPath: `$.metrics.${item.variableName}`,
+          jsonPath: item.jsonPath || `$.metrics.${item.variableName}`,
           pollingIntervalSeconds: 60,
+          // The comment names a real source, so the probe is connected and runs
+          status: item.targetUrlOrQuery.trim() ? "ACTIVE" : "UNBOUND",
         },
       },
     ],

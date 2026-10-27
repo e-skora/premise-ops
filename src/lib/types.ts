@@ -200,6 +200,8 @@ export interface DiscoveredCodebasePremise {
   decayWarningMargin: number;
   probeType: ProbeType;
   targetUrlOrQuery: string;
+  /** Where the value sits in the probe's JSON response (from `@premise jsonPath:`) */
+  jsonPath?: string;
   blastRadius: string;
   codeSnippet: string;
   alreadyMonitored: boolean;
