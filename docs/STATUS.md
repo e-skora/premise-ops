@@ -9,7 +9,7 @@ Read this at the start of every session. Update it at the end of every session (
 - Sample and seed text names no made-up files. `src/__tests__/sample-paths.test.ts` fails if it ever does again.
 - Safety scan before going public (all 69 commits, every branch): no secrets, no `.env`, `premise.db` or `.handoffs/` file ever committed, no emails other than commit author lines, no phone numbers or addresses. Done with `git grep` over every commit, because running the gitleaks binary was blocked by Claude Code's safety system. Only personal detail found: the Mac user name in tool paths (`/Users/frank/...`) in `AGENTS.md` history and one ship log line. Not a secret, left as is.
 - Branches: `main` and `launch/premiseops` (merged, kept: not approved for deletion). The 4 old merged branches were deleted locally and on GitHub with Elias's OK.
-- Not done: the example repo `e-skora/premise-ops-example`. Claude Code's safety system blocked creating a new public repo. It is ready to push in `.handoffs/premise-ops-example/` (one `@premise` comment on the real OpenRouter price, the README workflow copied exactly, first commit breaks the premise). Until it runs, the README's two `actions/checkout` steps are still unproven from another repo on GitHub.
+- Example repo: https://github.com/e-skora/premise-ops-example (public). One `@premise` comment on the real OpenRouter price and the README workflow copied exactly. First commit c5ed713 breaks the premise: CI red, run 40486128905, `check` exit 1 with 1 BROKEN. Second commit 7293bb8 holds: CI green, run 40486193060, 1 VALID. This proves the README's two `actions/checkout` steps from another repo on GitHub. The README links it.
 - Tests: 128 pass. `scripts/check-test-isolation.sh` passes.
 - The project has no users yet. A Show HN draft is ready in `.handoffs/show-hn-draft.md` (local only).
 
@@ -27,11 +27,11 @@ Premise goes forward as a slim, honest open-source tool and portfolio piece, not
 - 2026-10-27: "A decision with no data shows \"No data\", never HEALTHY, and check says so instead of passing quietly."
 - 2026-10-27: Compile Decision: "The dialog starts with no file path filled in." "If a document names no code location, the new decision shows \"No code location set\", never a made-up path." "If a path is given, check that the file really exists. If it doesn't, say so instead of saving it."
 - 2026-10-27: Name: "sure that works". The brand is PremiseOps, the repo is `e-skora/premise-ops`, and the `@premise` comments and the `premise` command stay. Supersedes the open naming question in the 2026-10-27 next steps.
+- 2026-10-27: Example repo: "Yes, create the public repo e-skora/premise-ops-example, push both versions, and link it from the README and the Show HN draft." Done.
 - 2026-10-27: Branches: "2 sure whatever" (delete the 4 merged branches `docs/readme-license`, `ci/other-repos`, `fix/compile-code-location`, `docs/log-v8`). Done. No other branch was approved for deletion.
 
 ## Next steps (in order)
-1. **Publish the example repo.** Elias allows Claude Code to create the public repo `e-skora/premise-ops-example`, then Claude pushes `.handoffs/premise-ops-example/` (red run), commits the holding version (green run), and links it from the README as a working example.
-2. **Elias posts the Show HN** from `.handoffs/show-hn-draft.md`. Add the example repo link to it once step 1 is done.
+1. **Elias posts the Show HN** from `.handoffs/show-hn-draft.md` (it links the repo, the demo and the example repo).
 
 ## Open items
 - OpenAI extraction (`gpt-6-luna`) has only been tested with a mocked response; no OpenAI key was available. Anthropic (`claude-haiku-5-5`) was tested with one real call.
@@ -39,7 +39,7 @@ Premise goes forward as a slim, honest open-source tool and portfolio piece, not
 - The CLI `check` summary shows "Drag: $56,150/mo", which looks too high for the seeded spend. Not investigated.
 - `check --reset` does not clear saved connectors (`ConnectorSetting` table). Clear them separately when wiping local data.
 - `WEB_SCRAPE_EXTRACT` has no scraper (it reads the last stored value). The README says so.
-- The README's copy-paste workflow has not yet run from a real second repo on GitHub (see next step 1).
+- The example repo runs its check every hour against the live OpenRouter price. If the price drops to $1 per 1M input tokens or below, its CI turns red. That is the tool working, not a bug.
 
 ## Lessons (so they are not relearned)
 - Claude Code reads `CLAUDE.md`, not `AGENTS.md` (verified in the Claude Code memory docs, https://code.claude.com/docs/en/memory). Until 2026-10-27 this repo had no `CLAUDE.md`, so Code panel sessions did not auto-load `AGENTS.md`. `CLAUDE.md` now imports `AGENTS.md` and this file.
