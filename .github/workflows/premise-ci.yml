@@ -44,3 +44,28 @@ jobs:
           PREMISE_FEED_FIXTURE_DIR: examples/fixtures/live-feeds
         run: bun ./bin/premise-cli.ts check --expect-broken upstream_llm_input_cost_usd
 
+  # The README's "use it in your own repo" steps, run against a stand-in repo
+  # (examples/user-repo). Its database starts empty (no demo decisions), its
+  # @premise probe really runs against the saved OpenRouter copy, and the
+  # premise holds at that price, so check must exit 0.
+  user-repo-check:
+    name: Check a Stand-In User Repo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile || bun install
+
+      - name: Import @premise comments and check them
+        env:
+          PREMISE_WORKSPACE_ROOT: ${{ github.workspace }}/examples/user-repo
+          PREMISE_DB_PATH: ${{ runner.temp }}/premise.db
+          PREMISE_FEED_FIXTURE_DIR: ${{ github.workspace }}/examples/fixtures/live-feeds
+        run: |
+          bun ./bin/premise-cli.ts scan --import
+          bun ./bin/premise-cli.ts check
+
