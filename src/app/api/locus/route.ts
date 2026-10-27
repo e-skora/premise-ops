@@ -16,9 +16,11 @@ export const dynamic = "force-dynamic";
 
 async function handleGet(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const targetLocus =
-    searchParams.get("targetLocus") ||
-    "examples/demo-repo/packages/llm-gateway/src/semantic-cache.ts:L1-L34";
+  const targetLocus = (searchParams.get("targetLocus") || "").trim();
+  // No code location: show nothing rather than some other file
+  if (!targetLocus) {
+    return NextResponse.json({ inspection: null, unifiedDiff: "", noLocus: true });
+  }
   const artifactTitle =
     searchParams.get("artifactTitle") || "Decision Artifact";
   const variableName =
@@ -75,8 +77,13 @@ async function handlePost(req: NextRequest) {
       cascadedFromTitle?: string;
     };
 
-    const targetLocus =
-      body.targetLocus || "examples/demo-repo/packages/llm-gateway/src/semantic-cache.ts:L1-L30";
+    const targetLocus = (body.targetLocus || "").trim();
+    if (!targetLocus) {
+      return NextResponse.json(
+        { error: "No code location set, so there is no file to patch" },
+        { status: 400 }
+      );
+    }
     const artifactTitle = body.artifactTitle || "Decision Artifact";
     const variableName = body.variableName || "monitored_metric";
     const operator = (body.operator || "GT") as Operator;

@@ -151,7 +151,7 @@ export function TeardownPane({
   const buildGitHubPrPayload = (ev: InvalidationEventRecord): string => {
     const title = ev.artifactTitle || selectedArtifact?.title || "Decision";
     const locus =
-      ev.targetLocus || selectedArtifact?.targetLocus || "unknown-locus";
+      ev.targetLocus || selectedArtifact?.targetLocus || "No code location set";
     const op = ev.operator ? OPERATOR_SYMBOLS[ev.operator] : "";
     const unit = ev.unit ? ` ${ev.unit}` : "";
 
