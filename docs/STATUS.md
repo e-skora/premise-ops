@@ -3,10 +3,10 @@
 Read this at the start of every session. Update it at the end of every session (state, decisions, lessons, next step). Dated decision lines are never edited; a later line supersedes an earlier one.
 
 ## Where things stand (2026-10-27)
-- `main` at the commit that updated this file, after PR #3 (merged as 1a941f0). Live site: https://premise-ops.com on Fly release v6 (deployed by hand from 8b41796's app code). Step 4 changed no app code, so it was not deployed.
-- Done: Step 1 make it safe (PR #1), Step 2 cut it down (PR #1), Step 3 make it honest (PR #2), Step 4 README and license (PR #3). Steps 1 to 3 are in the ship log in `docs/DEPLOYMENT.md`.
-- Step 4 added `README.md`, `LICENSE` (MIT), `docs/media/chaos-slider.gif`, and made `docs/DEPLOYMENT.md` a general guide. The premise-ops.com details and the ship log are now in its last section, "Our live demo (premise-ops.com)", under "### Ship log".
-- Branches: `main`, plus `docs/readme-license` (merged, kept on GitHub and locally until Elias says to delete it). Tests: 104 pass. `scripts/check-test-isolation.sh` passes.
+- `main` at the commit that updated this file, after PR #4 (merged as b085feb). Live site: https://premise-ops.com on Fly release v7, deployed by hand from b085feb (see the ship log in `docs/DEPLOYMENT.md`).
+- Done: Step 1 make it safe (PR #1), Step 2 cut it down (PR #1), Step 3 make it honest (PR #2), Step 4 README and license (PR #3), CI for other repos (PR #4).
+- CI for other repos now works, proven on a scratch repo (broken price: `check` exit 1; holding price: exit 0; feed down or no probe: exit 1 "No data") and on GitHub by the `user-repo-check` job against `examples/user-repo`. The README has a copy-paste workflow. Its two `actions/checkout` steps have not yet been run from another repo on GitHub.
+- Branches: `main`, plus the merged `docs/readme-license` and `ci/other-repos` (kept on GitHub and locally until Elias says to delete them). Tests: 117 pass. `scripts/check-test-isolation.sh` passes.
 - The repo is still private on GitHub (`e-skora/premise`).
 - The project has no users yet.
 
@@ -19,19 +19,21 @@ Premise goes forward as a slim, honest open-source tool and portfolio piece, not
 - 2026-10-26: Premise never shows a value, file path or result it did not really get. At least one demo premise watches real live data (ADR-014 reads the real OpenRouter price).
 - 2026-10-27: Real data is never bent to make CI green. ADR-014 stays "> $2.00". CI checks live-feed premises against a saved copy of the feed (no live internet) and expects the known real result; only the live site fetches real data.
 - Nothing is deleted (files, features, branches, data) without Elias's explicit OK.
+- 2026-10-27: CI must work for other people's repos before going public: "Yes, make CI work for other repos before going public. Fix the gaps you found."
+- 2026-10-27: "Demo decisions only go into the demo database, not into a user's own repo check."
+- 2026-10-27: "A decision with no data shows \"No data\", never HEALTHY, and check says so instead of passing quietly."
 
 ## Next steps (in order)
-1. **Decide: make CI work for other repos before going public?** Recommended yes, because the README's first line promises "fail CI when one breaks", and today that only works for this repo. Needs code changes and Elias's OK. The gaps are listed under Open items.
-2. **Step 5: go public.** Needs Elias's decision first: keep the name "Premise" or rename. "Premise" is also used by Premise Data (premise.com), a funded data company, so there is trademark and search-noise risk. Then flip the GitHub repo to public and post a Show HN built around "the half-life of an assumption".
+1. **Step 5: go public.** Needs Elias's decision first: keep the name "Premise" or rename. "Premise" is also used by Premise Data (premise.com), a funded data company, so there is trademark and search-noise risk. Then flip the GitHub repo to public and post a Show HN built around "the half-life of an assumption".
 
 ## Open items
 - OpenAI extraction (`gpt-6-luna`) has only been tested with a mocked response; no OpenAI key was available. Anthropic (`claude-haiku-5-5`) was tested with one real call.
 - When the real OpenRouter price changes, the live site flips but CI keeps the saved copy. Refresh `examples/fixtures/live-feeds` and the `--expect-broken` list together.
 - The CLI `check` summary shows "Drag: $56,150/mo", which looks too high for the seeded spend. Not investigated.
 - `check --reset` does not clear saved connectors (`ConnectorSetting` table). Clear them separately when wiping local data.
-- CI for someone else's repo does not work yet (tested 2026-10-27 on a scratch repo with `PREMISE_WORKSPACE_ROOT`): (a) every database also gets the demo decisions, so `check` judges them and fails on ADR-014; (b) a probe written in an `@premise` comment is imported as UNBOUND and never runs, even with a working URL; (c) a decision whose premises have no value shows HEALTHY, so a pass can mean "no data"; (d) the decision id from `scan --import` is random, so `check --artifact` cannot be scripted. What works: `check --artifact <id> --mutate name=value` exits 1 when broken and 0 when it holds.
-- `scan --repo` reads an ADR's blast radius only from the rest of the line after "Blast Radius" or "Sunset Criteria". For the demo ADR-005 heading `## Blast Radius & Sunset Criteria` it records "& Sunset Criteria". "Compile Decision" reads the section correctly.
-- `DATADOG_METRIC` is not accepted in `@premise` comments (falls back to `HTTP_JSON_PATH`), and `WEB_SCRAPE_EXTRACT` has no scraper (it reads the last stored value). The README says both.
+- `WEB_SCRAPE_EXTRACT` has no scraper (it reads the last stored value). The README says so.
+- The "Compile Decision" dialog starts with the first template's locus filled in (`examples/demo-repo/infra/k8s/gpu-whisper-pool/deployment.yaml`), a file that does not exist in the demo repo, and keeps it when you paste your own document. So a new decision can point at a made-up path. Found 2026-10-27, not fixed.
+- After going public, run the README's copy-paste workflow once from a real second repo to prove the two `actions/checkout` steps.
 
 ## Lessons (so they are not relearned)
 - Claude Code reads `CLAUDE.md`, not `AGENTS.md` (verified in the Claude Code memory docs, https://code.claude.com/docs/en/memory). Until 2026-10-27 this repo had no `CLAUDE.md`, so Code panel sessions did not auto-load `AGENTS.md`. `CLAUDE.md` now imports `AGENTS.md` and this file.
@@ -41,4 +43,6 @@ Premise goes forward as a slim, honest open-source tool and portfolio piece, not
 - After Step 3, CI would have depended on a live website's price. Fixed with saved feed copies (`PREMISE_FEED_FIXTURE_DIR`).
 - A feature that works on the demo data can still fail on a fresh repo. Step 4's CI example looked fine in this repo's own CI but did nothing useful on a scratch repo. Test docs examples from outside the repo before writing them down.
 - The app needs Node.js 22 or newer as well as Bun: `bun run dev` starts Next.js under Node, and the database uses Node's built-in SQLite.
+- A status that has no data must say so. "HEALTHY" for a decision with no values made a passing check mean nothing. Fixed with `NO_DATA`.
+- `PREMISE_WORKSPACE_ROOT` must be an absolute path for the locus inspector to find files (a relative root showed "UNMOUNTED LOCUS"). The CI job uses `${{ github.workspace }}/...`.
 - `.handoffs/` is git-ignored: prompts and reports there exist only on Elias's Mac. Anything a future session must know goes in this file or `AGENTS.md`.
