@@ -1,4 +1,4 @@
-# fly.toml app configuration file for Premise (premise-ops.com)
+# fly.toml app configuration file for PremiseOps (premise-ops.com)
 app = "premise-ops"
 primary_region = "iad"
 

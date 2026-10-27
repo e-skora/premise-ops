@@ -64,7 +64,7 @@ export function buildSlackBlockKitAlert(params: {
       elements: [
         {
           type: "mrkdwn",
-          text: `🔴 *CRITICAL KILL-SWITCH* | Engine: *Premise v3.0* | Triggered: \`${event.triggeredAt}\` | Event: \`${event.id}\``,
+          text: `🔴 *CRITICAL KILL-SWITCH* | Engine: *PremiseOps v3.0* | Triggered: \`${event.triggeredAt}\` | Event: \`${event.id}\``,
         },
       ],
     },
@@ -129,7 +129,7 @@ export function buildSlackBlockKitAlert(params: {
           type: "button",
           text: {
             type: "plain_text",
-            text: "🔍 View in Premise Control Plane",
+            text: "🔍 View in PremiseOps Control Plane",
             emoji: true,
           },
           action_id: "premise_view_control_plane",
@@ -141,7 +141,7 @@ export function buildSlackBlockKitAlert(params: {
 
   return {
     channel: channel || "#arch-decision-drift",
-    username: username || "Premise Kill-Switch Bot",
+    username: username || "PremiseOps Kill-Switch Bot",
     icon_emoji: ":boom:",
     text: fallbackText,
     blocks,
@@ -373,7 +373,7 @@ export function buildPagerDutyV2Payload(params: {
     links: [
       {
         href: controlPlaneUrl,
-        text: "Premise Control Plane & 1-Click Teardown Diff",
+        text: "PremiseOps Control Plane & 1-Click Teardown Diff",
       },
     ],
   };

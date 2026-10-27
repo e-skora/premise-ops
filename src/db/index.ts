@@ -2034,7 +2034,7 @@ export async function dispatchInvalidationAlert(params: {
     const slackSetting = getConnectorSetting("SLACK");
     let webhookUrl = params.targetEndpoint || "";
     let defaultChannel = "#arch-decision-drift";
-    let botUsername = "Premise Kill-Switch Bot";
+    let botUsername = "PremiseOps Kill-Switch Bot";
 
     if (slackSetting) {
       try {
@@ -2447,7 +2447,7 @@ const DEMO_PLACEHOLDER_CONNECTORS: Record<
     maskedConfig: {
       webhookUrl: "****demo",
       defaultChannel: "#arch-decision-drift",
-      botUsername: "Premise Kill-Switch Bot",
+      botUsername: "PremiseOps Kill-Switch Bot",
     },
   },
   PAGERDUTY: {
@@ -2525,7 +2525,7 @@ export function getMaskedConnectorSettings(): ConnectorMaskedSetting[] {
       const channel = (parsed.defaultChannel as string) || "#arch-decision-drift";
       masked.webhookUrl = maskSecretString(url);
       masked.defaultChannel = channel;
-      masked.botUsername = (parsed.botUsername as string) || "Premise Kill-Switch Bot";
+      masked.botUsername = (parsed.botUsername as string) || "PremiseOps Kill-Switch Bot";
       summary = channel;
     } else if (type === "PAGERDUTY") {
       const routingKey = (parsed.routingKey as string) || "";

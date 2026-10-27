@@ -193,7 +193,7 @@ function printFinOpsTable(ledger: FinOpsLedgerSummary) {
 
 function printHelp() {
   console.log(`
-${ANSI.bold}${ANSI.emerald}PREMISE CLI v3.0${ANSI.reset} — Executable CI/CD Runner & Codebase Scanner for Architectural Decisions
+${ANSI.bold}${ANSI.emerald}PREMISEOPS CLI v3.0${ANSI.reset} — Executable CI/CD Runner & Codebase Scanner for Architectural Decisions
 
 ${ANSI.bold}USAGE:${ANSI.reset}
   bun ./bin/premise-cli.ts check [options]
@@ -302,7 +302,7 @@ async function runScanCommand(args: string[]) {
       `${ANSI.bold}${ANSI.white}╔══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗${ANSI.reset}`
     );
     console.log(
-      `${ANSI.bold}${ANSI.white}║  PREMISE GITHUB REPOSITORY SCANNER // ADR & DEPENDENCY MANIFEST AUTO-EXTRACTOR                                                ║${ANSI.reset}`
+      `${ANSI.bold}${ANSI.white}║  PREMISEOPS GITHUB REPOSITORY SCANNER // ADR & DEPENDENCY MANIFEST AUTO-EXTRACTOR                                             ║${ANSI.reset}`
     );
     console.log(
       `${ANSI.bold}${ANSI.white}╚══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝${ANSI.reset}`
@@ -426,7 +426,7 @@ async function runScanCommand(args: string[]) {
     `${ANSI.bold}${ANSI.white}╔══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗${ANSI.reset}`
   );
   console.log(
-    `${ANSI.bold}${ANSI.white}║  PREMISE CODEBASE ASSUMPTION SCANNER // @premise & @premise-locus DISCOVERY                                                  ║${ANSI.reset}`
+    `${ANSI.bold}${ANSI.white}║  PREMISEOPS CODEBASE ASSUMPTION SCANNER // @premise & @premise-locus DISCOVERY                                               ║${ANSI.reset}`
   );
   console.log(
     `${ANSI.bold}${ANSI.white}╚══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝${ANSI.reset}`
@@ -536,7 +536,7 @@ async function runBacktestCommand(args: string[]) {
     `${ANSI.bold}${ANSI.white}╔══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗${ANSI.reset}`
   );
   console.log(
-    `${ANSI.bold}${ANSI.white}║  PREMISE TIME-MACHINE // HISTORICAL DRIFT BACKTESTER & SCENARIO REPLAY ENGINE                                                ║${ANSI.reset}`
+    `${ANSI.bold}${ANSI.white}║  PREMISEOPS TIME-MACHINE // HISTORICAL DRIFT BACKTESTER & SCENARIO REPLAY ENGINE                                             ║${ANSI.reset}`
   );
   console.log(
     `${ANSI.bold}${ANSI.white}╚══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝${ANSI.reset}`
@@ -1030,7 +1030,7 @@ async function main() {
     `${ANSI.bold}${ANSI.white}╔══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗${ANSI.reset}`
   );
   console.log(
-    `${ANSI.bold}${ANSI.white}║  PREMISE CI/CD ASSERTION RUNNER v3.0 // ARCHITECTURAL & STRATEGIC DECISION GARBAGE COLLECTOR                                 ║${ANSI.reset}`
+    `${ANSI.bold}${ANSI.white}║  PREMISEOPS CI/CD ASSERTION RUNNER v3.0 // ARCHITECTURAL & STRATEGIC DECISION GARBAGE COLLECTOR                              ║${ANSI.reset}`
   );
   console.log(
     `${ANSI.bold}${ANSI.white}╚══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝${ANSI.reset}`
@@ -1289,6 +1289,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error(`${ANSI.rose}Fatal Premise CLI Error:${ANSI.reset}`, err);
+  console.error(`${ANSI.rose}Fatal PremiseOps CLI Error:${ANSI.reset}`, err);
   process.exit(1);
 });

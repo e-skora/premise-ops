@@ -53,7 +53,7 @@ export function synthesizeReplacementAdr(params: {
 ## Context & Problem Statement
 In \`ADR-014\`, we deployed a dedicated 3-node Redis Stack cluster (\`redis-semantic-prod-01\`) to cache prompt completions because upstream frontier models were priced at > $2.00/1M tokens with TTFT exceeding 650ms. 
 
-Telemetry recorded by Premise engine proved that upstream frontier model pricing dropped below the boundary and P95 TTFT stabilized below 450ms. The custom Redis HNSW cache lookup overhead (18-24ms) and $600/mo committed spend now represent pure architectural drag.
+Telemetry recorded by the PremiseOps engine proved that upstream frontier model pricing dropped below the boundary and P95 TTFT stabilized below 450ms. The custom Redis HNSW cache lookup overhead (18-24ms) and $600/mo committed spend now represent pure architectural drag.
 
 ## Decision & Replacement Architecture
 We decommission the custom Redis vector microservice and cascade-terminate \`VENDOR-04: Redis Enterprise Annual Commit\`. We adopt:

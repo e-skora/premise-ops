@@ -1,4 +1,4 @@
-name: Premise Architectural & Strategic Decision CI
+name: PremiseOps Architectural & Strategic Decision CI
 
 on:
   push:
@@ -39,7 +39,7 @@ jobs:
       # ($2.00 per 1M tokens) ADR-014's "> $2.00" premise is really BROKEN, so
       # the step expects exactly that and fails on any other outcome.
       # The live site keeps fetching the real price.
-      - name: Run Premise CI/CD Decision Assertions
+      - name: Run PremiseOps CI/CD Decision Assertions
         env:
           PREMISE_FEED_FIXTURE_DIR: examples/fixtures/live-feeds
         run: bun ./bin/premise-cli.ts check --expect-broken upstream_llm_input_cost_usd

@@ -746,7 +746,7 @@ export function PremiseControlPlane({
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-mono font-bold tracking-tight text-zinc-100">
-                  PREMISE
+                  PREMISEOPS
                 </span>
                 <span className="text-[10px] font-mono px-1.5 py-0.5 bg-zinc-900 border border-zinc-800 text-zinc-400">
                   v3.0 // CI/CD FOR DECISIONS
@@ -914,7 +914,7 @@ export function PremiseControlPlane({
             type="button"
             onClick={() => setIsTourOpen(true)}
             className="flex px-2.5 py-1.5 text-xs font-mono font-semibold bg-cyan-950/80 hover:bg-cyan-900 text-cyan-200 border border-cyan-500/60 hover:border-cyan-400 items-center gap-1.5 transition-all shadow-[0_0_15px_rgba(6,182,212,0.25)] hover:shadow-[0_0_22px_rgba(6,182,212,0.45)] active:scale-95"
-            title="Start 60-second interactive guided walkthrough tour of Premise"
+            title="Start 60-second interactive guided walkthrough tour of PremiseOps"
           >
             <Compass className="w-3.5 h-3.5 text-cyan-400" />
             <span>Guided Tour</span>

@@ -72,7 +72,7 @@ export function ConnectorSettingsModal({
   // Slack Form State
   const [slackWebhookUrl, setSlackWebhookUrl] = useState("");
   const [slackChannel, setSlackChannel] = useState("#arch-decision-drift");
-  const [slackBotName, setSlackBotName] = useState("Premise Kill-Switch Bot");
+  const [slackBotName, setSlackBotName] = useState("PremiseOps Kill-Switch Bot");
 
   // PagerDuty Form State
   const [pdRoutingKey, setPdRoutingKey] = useState("");
@@ -136,7 +136,7 @@ export function ConnectorSettingsModal({
       const cfg = slack.maskedConfig as Record<string, any>;
       setSlackWebhookUrl(cfg.webhookUrl || "");
       setSlackChannel(cfg.defaultChannel || "#arch-decision-drift");
-      setSlackBotName(cfg.botUsername || "Premise Kill-Switch Bot");
+      setSlackBotName(cfg.botUsername || "PremiseOps Kill-Switch Bot");
     }
 
     const pd = list.find((c) => c.connectorType === "PAGERDUTY");
@@ -719,7 +719,7 @@ export function ConnectorSettingsModal({
                     type="text"
                     value={slackBotName}
                     onChange={(e) => setSlackBotName(e.target.value)}
-                    placeholder="Premise Kill-Switch Bot"
+                    placeholder="PremiseOps Kill-Switch Bot"
                     className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
                   />
                 </div>
@@ -735,7 +735,7 @@ export function ConnectorSettingsModal({
                     🚨 PREMISE BROKEN: [ADR-014] Semantic Caching Gateway
                   </div>
                   <div className="text-[11px] text-slate-400">
-                    🔴 <span className="text-rose-400 font-semibold">CRITICAL KILL-SWITCH</span> | Engine: Premise v3.0 | Triggered: 2026-10-23T01:42:00Z
+                    🔴 <span className="text-rose-400 font-semibold">CRITICAL KILL-SWITCH</span> | Engine: PremiseOps v3.0 | Triggered: 2026-10-23T01:42:00Z
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-800">
                     <div>
