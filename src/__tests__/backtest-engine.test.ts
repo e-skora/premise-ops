@@ -224,5 +224,14 @@ describe("Horizon C: Historical Drift Backtesting & Scenario Replay Engine", () 
     expect(report.summary.survivedArtifacts).toBe(4);
     expect(report.summary.invalidatedArtifacts).toBe(0);
     expect(report.summary.portfolioRating).toBe("HIGH");
+
+    // The live premise has no value until its first real fetch: no score, no advice
+    const live = report.artifacts
+      .flatMap((a) => a.premises)
+      .find((p) => p.premiseId === "prem-adr-014-cost");
+    expect(live?.hasData).toBe(false);
+    expect(live?.initialValue).toBeNull();
+    expect(live?.recommendedThreshold).toBe(live?.thresholdValue);
+    expect(live?.steps.every((s) => s.simulatedValue === null && s.status === "UNBOUND")).toBe(true);
   });
 });

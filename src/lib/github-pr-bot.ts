@@ -225,7 +225,8 @@ export function createLocalGitTeardownBranch(params: {
 }
 
 /**
- * Publishes an autonomous Teardown Pull Request via the GitHub REST API or generates a verified Dry-Run package.
+ * Opens a teardown pull request through the GitHub REST API when a token is set.
+ * Otherwise returns a dry run: the PR body and a `gh pr create` command, with no PR number or link.
  */
 export async function publishGitHubPullRequest(
   params: GitHubPrRequest & {
@@ -339,6 +340,7 @@ export async function publishGitHubPullRequest(
 
         return {
           ok: true,
+          status: "SENT",
           prNumber: data.number,
           prUrl: data.html_url,
           branchName,
@@ -350,34 +352,32 @@ export async function publishGitHubPullRequest(
           compareUrl,
           targetEndpoint,
         };
-      } else {
-        const errorData = await response.text();
-        // Fall back to dry-run payload if remote returned error (e.g. branch not pushed yet)
-        const pseudoPrNumber = 900 + Math.floor(Math.random() * 95);
-        return {
-          ok: true,
-          prNumber: pseudoPrNumber,
-          prUrl: `https://github.com/${repo}/pull/${pseudoPrNumber}`,
-          branchName,
-          commitSha: branchRes.commitSha,
-          isDryRun: true,
-          title,
-          bodyMarkdown,
-          ghCliCommand,
-          compareUrl,
-          targetEndpoint,
-          error: `GitHub API status ${response.status}: ${errorData}`,
-        };
       }
-    } catch (err) {
-      const pseudoPrNumber = 900 + Math.floor(Math.random() * 95);
+      const errorData = await response.text();
       return {
-        ok: true,
-        prNumber: pseudoPrNumber,
-        prUrl: `https://github.com/${repo}/pull/${pseudoPrNumber}`,
+        ok: false,
+        status: "FAILED",
+        prNumber: null,
+        prUrl: null,
         branchName,
         commitSha: branchRes.commitSha,
-        isDryRun: true,
+        isDryRun: false,
+        title,
+        bodyMarkdown,
+        ghCliCommand,
+        compareUrl,
+        targetEndpoint,
+        error: `GitHub API returned HTTP ${response.status}: ${errorData.slice(0, 300)}`,
+      };
+    } catch (err) {
+      return {
+        ok: false,
+        status: "FAILED",
+        prNumber: null,
+        prUrl: null,
+        branchName,
+        commitSha: branchRes.commitSha,
+        isDryRun: false,
         title,
         bodyMarkdown,
         ghCliCommand,
@@ -388,12 +388,12 @@ export async function publishGitHubPullRequest(
     }
   }
 
-  // Pure Dry-Run or Local-Only Mode
-  const pseudoPrNumber = 900 + Math.floor(Math.random() * 95);
+  // Dry run: nothing was sent to GitHub. The body and gh command let a person open it.
   return {
     ok: true,
-    prNumber: pseudoPrNumber,
-    prUrl: `https://github.com/${repo}/pull/${pseudoPrNumber}`,
+    status: "DRY_RUN",
+    prNumber: null,
+    prUrl: null,
     branchName,
     commitSha: branchRes.commitSha,
     isDryRun: true,
@@ -402,5 +402,10 @@ export async function publishGitHubPullRequest(
     ghCliCommand,
     compareUrl,
     targetEndpoint,
+    dryRunReason: publicDemo
+      ? "Public demo never sends anything."
+      : params.dryRun
+        ? "Dry run was requested."
+        : "No GitHub token is set (GITHUB_TOKEN or GH_TOKEN).",
   };
 }

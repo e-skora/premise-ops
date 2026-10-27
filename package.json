@@ -21,6 +21,7 @@
     "premise:backtest:json": "bun ./bin/premise-cli.ts backtest --json"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0",
     "clsx": "^2.1.1",
     "lucide-react": "^0.469.0",
     "next": "14.2.23",

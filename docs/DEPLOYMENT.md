@@ -37,7 +37,8 @@ Ship log:
 ## Architecture Overview
 - **Framework:** Next.js 14 App Router (`output: standalone`)
 - **Persistence:** Local SQLite WAL engine (`premise.db`) with zero-config auto-seeding on first run
-- **Telemetry:** Real-time PromQL parser, Datadog Metric API v2, Slack Block Kit & PagerDuty Events v2 dispatchers
+- **Telemetry:** one live public feed in the demo (ADR-014 reads the Claude Sonnet 5.5 input price from `https://openrouter.ai/api/v1/models`, cached 10 minutes); everything else is demo data until you connect sources. Probes can query a real Prometheus server or Datadog Metric API v2 through connectors, any JSON URL, or SQL on Premise's own database. The built-in PromQL support is a subset that runs on Premise's own stored samples.
+- **Outbound:** GitHub PR, Slack Block Kit and PagerDuty Events v2 dispatchers. Each result is `SENT`, `DRY_RUN` (nothing left the app) or `FAILED` (with the real error).
 - **Port:** `3000`
 
 ---
@@ -90,10 +91,14 @@ Fly.io utilizes the included `fly.toml` and `Dockerfile`:
 
 ## Environment Variables (Optional)
 
-The application functions 100% out of the box with zero environment variables needed (mock telemetry and deterministic engines are active). 
+The app runs with no environment variables. Without them, the seeded decisions show demo data (labeled "Demo data" in the UI), the compiler uses its basic parser, and every dispatch is a dry run.
 
-To connect live production services, provide the following in your Railway/Fly dashboard:
-- `OPENAI_API_KEY`: *(Optional)* Enables live LLM-based clause extraction during document compilation.
-- `GITHUB_TOKEN`: *(Optional)* Enables automated creation of real GitHub Pull Requests when teardowns breach.
-- `SLACK_WEBHOOK_URL`: *(Optional)* Fallback default for Slack incident dispatch.
-- `PAGERDUTY_ROUTING_KEY`: *(Optional)* Fallback routing key for PagerDuty Events v2.
+| Variable | Effect |
+| --- | --- |
+| `PREMISE_LLM_PROVIDER` | `anthropic` or `openai`. When unset, the first key found wins: `ANTHROPIC_API_KEY`, then `OPENAI_API_KEY`. |
+| `ANTHROPIC_API_KEY` | Enables language-model extraction in the compiler through the Anthropic Messages API (default model `claude-haiku-5-5`). |
+| `OPENAI_API_KEY` | Enables extraction through the OpenAI Responses API (default model `gpt-6-luna`). |
+| `PREMISE_LLM_MODEL` | Overrides the model for the chosen provider. |
+| `GITHUB_TOKEN` / `GH_TOKEN` | Lets the PR bot open real pull requests. Without it, PRs are dry runs that return the PR body and a `gh pr create` command. |
+
+All of these are ignored when `PREMISE_PUBLIC_DEMO=1` (the live site): the demo never calls a model, never opens a PR, and never sends Slack or PagerDuty messages. If a model call fails, the compiler says "AI extraction failed: <reason>. Used the basic parser." Slack and PagerDuty are configured in the app's connector settings, not through environment variables. No model keys are set on Fly.

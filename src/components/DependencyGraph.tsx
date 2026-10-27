@@ -17,6 +17,7 @@ import {
   LogicCombinator,
   OPERATOR_SYMBOLS,
 } from "@/lib/types";
+import { premiseValueText } from "./PremiseSourceBadge";
 
 interface DependencyGraphProps {
   artifact: DecisionArtifactRecord;
@@ -170,7 +171,7 @@ export function DependencyGraph({
                     <span className="font-bold truncate">{p.variableName}</span>
                   </div>
                   <div className="text-[10px] opacity-80 truncate">
-                    {p.currentValue} {OPERATOR_SYMBOLS[p.operator]}{" "}
+                    {premiseValueText(p)} {OPERATOR_SYMBOLS[p.operator]}{" "}
                     {p.thresholdValue} {p.unit}
                   </div>
                 </div>
@@ -219,7 +220,7 @@ export function DependencyGraph({
               </span>
             </div>
             <div className="text-xs font-bold truncate mb-1">
-              {artifact.targetLocus}
+              {artifact.targetLocus || "No code location set"}
             </div>
             <div className="text-[10px] opacity-85 flex items-center gap-1">
               <ShieldAlert className="w-3 h-3 shrink-0" />

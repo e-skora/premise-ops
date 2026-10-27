@@ -472,7 +472,9 @@ export function RepoScannerModal({
                         </span>
                       </div>
                       <span className="text-[10px] text-zinc-500 mt-0.5 block">
-                        Initial Telemetry: {item.currentValue} {item.unit}
+                        {item.currentValue
+                          ? `Current value: ${item.currentValue} ${item.unit}`
+                          : "No value yet: the probe is a suggestion until you connect a real source"}
                       </span>
                     </div>
 

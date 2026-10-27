@@ -109,6 +109,10 @@ async function handlePost(req: NextRequest) {
           typeof body.pollingIntervalSeconds === "number"
             ? body.pollingIntervalSeconds
             : undefined,
+        valueMultiplier:
+          typeof body.valueMultiplier === "number" && body.valueMultiplier > 0
+            ? body.valueMultiplier
+            : undefined,
       });
 
       return NextResponse.json({

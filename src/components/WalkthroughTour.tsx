@@ -69,20 +69,20 @@ export function WalkthroughTour({
       tag: "STEP 1 // ARCHITECTURAL CONTRACTS",
       title: "Living Architectural Contracts",
       description:
-        "Premise transforms static ADRs, GitHub PRs, and Strategy Memos into living, executable contracts. Instead of rotting in stale markdown files, every decision is continuously asserted against real-time operational telemetry.",
+        "Premise transforms static ADRs, GitHub PRs, and Strategy Memos into executable contracts. Instead of rotting in stale markdown files, each decision is checked against the telemetry its probes report.",
       insight:
-        "Static architecture docs lie. Premise ensures every constraint has an active, monitored pulse.",
+        "Static architecture docs lie. Each value here is labeled Live, Reported, Demo data or No value yet, so you always know what you are looking at.",
       preferredPlacement: "right",
     },
     {
       id: "probes",
       targetSelector: '[data-tour="telemetry-probe"]',
-      tag: "STEP 2 // LIVE TELEMETRY PROBES",
-      title: "Real-Time PromQL & Metric Probes",
+      tag: "STEP 2 // TELEMETRY PROBES",
+      title: "Probes: One Live, the Rest Demo Data",
       description:
-        "Every premise binds natural-language claims to live Prometheus/Thanos PromQL, Datadog v2 metrics, or SQLite telemetry. Here, ADR-014 requires LLM input token costs to stay below $0.0020/1k tokens to justify an expensive cache.",
+        "Each premise binds a natural-language claim to a probe. ADR-014's cost premise is live: it reads the real Claude Sonnet 5.5 input price from OpenRouter's public models list, and the cache is only worth keeping while that price is above $2.00 per 1M tokens. The other seeded premises show demo data until you connect Prometheus, Datadog, SQL or a JSON URL.",
       insight:
-        "Drift velocity and Time-To-Invalidation (TTI) predict breaches days or weeks before they break production.",
+        "Drift velocity and Time-To-Invalidation (TTI) estimate when a premise will break, based on the values recorded so far.",
       preferredPlacement: "bottom",
     },
     {
@@ -91,9 +91,9 @@ export function WalkthroughTour({
       tag: "STEP 3 // CHAOS & REALITY DRIFT",
       title: "Simulate Reality Drift & Price Collapses",
       description:
-        "What happens when frontier AI models cut prices by 70%, making our custom Semantic Cache economically wasteful? Drag the slider on screen or click the button below to inject a live telemetry shock and watch Premise detect the decay.",
+        "What happens when frontier model prices drop by 70%, making our custom Semantic Cache economically wasteful? Drag the slider on screen or click the button below to inject a simulated price shock and watch Premise detect the decay.",
       insight:
-        "Interactive: Click 'Trigger 70% Price Shock' below to watch the live assertion trip from VALID to DECAYING to BROKEN!",
+        "Interactive: Click 'Trigger 70% Price Shock' below to watch the assertion trip to BROKEN. The injected value is labeled as demo data.",
       preferredPlacement: "bottom",
       interactiveAction: onSimulateBreach
         ? {
@@ -112,9 +112,9 @@ export function WalkthroughTour({
       tag: "STEP 4 // MULTI-HOP CASCADES",
       title: "The Domino Effect & Blast Radius",
       description:
-        "Architectural decisions don't live in isolation. When ADR-014 breaks, Premise instantly calculates the downstream blast radius—propagating failure to VENDOR-004 (Redis Enterprise $14.2k/mo commit) and dependent microservices.",
+        "Architectural decisions don't live in isolation. When ADR-014 breaks, Premise follows the declared dependencies and flags VENDOR-04 (the Redis Enterprise commit) as cascaded.",
       insight:
-        "Multi-hop cascade graphs prevent zombie vendor contracts and obsolete consumer callers before they cause outages.",
+        "Multi-hop cascades surface vendor contracts and callers that depend on a broken decision.",
       preferredPlacement: "bottom",
     },
     {
@@ -131,12 +131,12 @@ export function WalkthroughTour({
     {
       id: "dispatch",
       targetSelector: '[data-tour="teardown-dispatch"]',
-      tag: "STEP 6 // AUTONOMOUS PR BOT & ALERTS",
-      title: "Autonomous GitHub PRs & Kill-Switches",
+      tag: "STEP 6 // PR BOT & ALERTS",
+      title: "Teardown PR Drafts & Kill-Switches",
       description:
-        "With zero human friction, Premise cuts a dedicated git branch (premise/teardown-adr-014), drafts an architecture-grade GitHub Pull Request with Architecture Council signoff checklists, and dispatches Slack Block Kit cards and PagerDuty Events v2.",
+        "Premise drafts a teardown branch (premise/teardown-adr-014), a GitHub Pull Request with a review checklist, Slack Block Kit cards and PagerDuty Events v2 incidents. With real credentials it sends them; otherwise each one is a dry run that says nothing was sent.",
       insight:
-        "Eliminate meeting fatigue: the PR is already opened and staged when the team joins standup.",
+        "In this public demo everything is a dry run. You get the PR body and the gh command to open it yourself.",
       preferredPlacement: "left",
     },
     {
@@ -145,7 +145,7 @@ export function WalkthroughTour({
       tag: "STEP 7 // EXECUTIVE FINOPS & TIME-MACHINE",
       title: "Architecture Balance Sheet & Backtesting",
       description:
-        "Quantify the monthly dollar drag of zombie architecture ($1,703/mo in wasted cloud spend), formulate replacement ADRs automatically, and replay 90-day black swan market shocks using the Time-Machine Backtester.",
+        "Quantify the monthly dollar drag of zombie architecture from the spend recorded for each decision (demo numbers here), draft replacement ADRs from templates, and replay simulated market shocks with the Time-Machine Backtester.",
       insight:
         "Bridge the gap between engineering and finance by putting an exact dollar value on architectural debt.",
       preferredPlacement: "bottom",

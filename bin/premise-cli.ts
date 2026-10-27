@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { compareBrokenToExpected } from "../src/lib/expected-outcome";
 import {
   applyLocusPatchAndRecordBackup,
   dispatchInvalidationAlert,
@@ -197,7 +198,7 @@ ${ANSI.bold}USAGE:${ANSI.reset}
   bun ./bin/premise-cli.ts backtest [--scenario <name>] [--steps <n>] [--shock <pct>] [--noise <pct>] [--json]
 
 ${ANSI.bold}COMMANDS:${ANSI.reset}
-  check                            Evaluate all load-bearing premises against live HTTP, SQL_METRIC, and PROMQL probes
+  check                            Run probes, then evaluate all load-bearing premises (ADR-014's OpenRouter price is the one live demo source; other seeded premises use demo data)
   scan                             Scan workspace files, markdown ADRs, and package manifests for architectural assumptions
   backtest, replay                 Run historical drift backtesting & scenario stress-testing across decision portfolio
 
@@ -218,13 +219,14 @@ ${ANSI.bold}OPTIONS:${ANSI.reset}
   --strict                         Exit with code 1 on DECAYING / AT_RISK warnings as well as BROKEN premises
   --finops                         Display Architecture Balance Sheet & Inefficiency Drag Ledger
   --no-poll                        Skip live probe execution before evaluating assertions
+  --expect-broken <ids>            Comma-separated premise ids or variable names known to be BROKEN; check passes only if exactly these are broken
   --artifact <id>                  Filter check or backtest to a single DecisionArtifact ID (e.g., art-adr-014)
   --premise <id>                   Filter backtest to a single Premise ID
   --simulate-breach <varOrPremId>  Inject a synthetic threshold breach for a premise/variable to test CI failure & cascade
   --mutate <variable>=<value>      Mutate a telemetry variable before running assertions (e.g., upstream_llm_input_cost_usd=1.40)
   --apply                          Apply generated teardown patches directly to local workspace files for INVALIDATED decisions
   --rollback                       Restore any patched workspace files from SQLite LocusBackup snapshots
-  --create-pr, --pr                Autonomously create git branch & publish/stage GitHub Teardown PR for INVALIDATED decisions
+  --create-pr, --pr                Draft a teardown PR for INVALIDATED decisions; opens it on GitHub only when GITHUB_TOKEN is set
   --branch <name>                  Custom branch name for teardown PR (default: premise/teardown-<artifactId>)
   --repo <owner/repo>              Target GitHub repository (default: org/core-monorepo)
   --import                         (With 'scan') Automatically compile & import all untracked codebase premises into ./premise.db
@@ -603,7 +605,10 @@ async function runBacktestCommand(args: string[]) {
       const startVal = p.steps[0]?.simulatedValue ?? p.initialValue;
       const endVal =
         p.steps[p.steps.length - 1]?.simulatedValue ?? p.initialValue;
-      const trajectoryStr = `${startVal} ─▶ ${endVal}${unitShort}`;
+      const trajectoryStr =
+        startVal === null || endVal === null
+          ? "no data yet"
+          : `${startVal} ─▶ ${endVal}${unitShort}`;
       const boundStr = `${opSym} ${p.thresholdValue}${unitShort}`;
 
       const resColor =
@@ -613,8 +618,9 @@ async function runBacktestCommand(args: string[]) {
           ? ANSI.amber
           : ANSI.rose;
 
-      const breachStr =
-        p.breachStep !== null
+      const breachStr = !p.hasData
+        ? `${ANSI.dim}NO DATA${ANSI.reset}`
+        : p.breachStep !== null
           ? `${ANSI.rose}Step ${p.breachStep} (${p.breachValue}${unitShort})${ANSI.reset}`
           : `${ANSI.emerald}SURVIVED${ANSI.reset}`;
 
@@ -631,13 +637,15 @@ async function runBacktestCommand(args: string[]) {
           boundStr,
           cols.bound
         )} │ ${padCell(
-          `${resColor}${ANSI.bold}${p.resilienceScore}/100 (${p.resilienceRating.slice(
-            0,
-            4
-          )})${ANSI.reset}`,
+          p.hasData
+            ? `${resColor}${ANSI.bold}${p.resilienceScore}/100 (${p.resilienceRating.slice(
+                0,
+                4
+              )})${ANSI.reset}`
+            : `${ANSI.dim}not scored${ANSI.reset}`,
           cols.resilience
         )} │ ${padCell(
-          `${p.survivalRatePct}%`,
+          p.hasData ? `${p.survivalRatePct}%` : "n/a",
           cols.survival,
           "right"
         )} │ ${padCell(breachStr, cols.breach)}`
@@ -696,6 +704,8 @@ async function runBacktestCommand(args: string[]) {
             ANSI.reset
           }`
         );
+      } else if (!p.hasData) {
+        parts.push(`${ANSI.dim}[no data to replay yet]${ANSI.reset}`);
       } else {
 
         parts.push(
@@ -732,7 +742,11 @@ async function runBacktestCommand(args: string[]) {
   );
   for (const art of report.artifacts) {
     for (const p of art.premises) {
-      if (p.recommendedThreshold !== p.thresholdValue) {
+      if (!p.hasData) {
+        console.log(
+          `  • ${ANSI.bold}${p.variableName}${ANSI.reset}: ${ANSI.dim}no data to replay yet, no advice${ANSI.reset}`
+        );
+      } else if (p.recommendedThreshold !== p.thresholdValue) {
         console.log(
           `  • ${ANSI.bold}${p.variableName}${ANSI.reset}: ${ANSI.amber}${p.recommendedThresholdAdjustment}${ANSI.reset} (was: ${OPERATOR_SYMBOLS[p.operator]} ${p.thresholdValue})`
         );
@@ -816,6 +830,10 @@ async function main() {
   const mutateExpr = getArgValue("--mutate");
   const customBranch = getArgValue("--branch");
   const targetRepo = getArgValue("--repo");
+  const expectBrokenArg = getArgValue("--expect-broken");
+  const expectedBroken = expectBrokenArg
+    ? expectBrokenArg.split(",").map((e) => e.trim()).filter(Boolean)
+    : null;
 
   if (shouldRollback) {
     const restored = rollbackAllPatchedLoci();
@@ -931,10 +949,16 @@ async function main() {
     }
   }
 
-  const shouldFail =
-    brokenPremises.length > 0 ||
-    invalidatedArtifacts.length > 0 ||
-    (isStrict && decayingPremises.length > 0);
+  // With --expect-broken, the known broken premises are the expected outcome:
+  // only a different set of broken premises fails the check
+  const expectation = expectedBroken
+    ? compareBrokenToExpected(brokenPremises, expectedBroken)
+    : null;
+  const shouldFail = expectation
+    ? !expectation.ok || (isStrict && decayingPremises.length > 0)
+    : brokenPremises.length > 0 ||
+      invalidatedArtifacts.length > 0 ||
+      (isStrict && decayingPremises.length > 0);
   const exitCode = shouldFail ? 1 : 0;
 
   const finOpsLedger = calculateFinOpsLedger(artifacts, allEvents);
@@ -947,6 +971,9 @@ async function main() {
           ok: exitCode === 0,
           exitCode,
           strictMode: isStrict,
+          expectedBroken: expectation
+            ? { expected: expectedBroken, ...expectation }
+            : null,
           appliedLoci,
           finOps: finOpsLedger,
           summary: {
@@ -1172,19 +1199,23 @@ async function main() {
               `\n${ANSI.emerald}${ANSI.bold}╔══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗${ANSI.reset}`
             );
             console.log(
-              `${ANSI.emerald}${ANSI.bold}║  🤖 AUTONOMOUS GITHUB PR BOT DISPATCH // PULL REQUEST STAGED                                                                 ║${ANSI.reset}`
+              `${ANSI.emerald}${ANSI.bold}║  GITHUB PR BOT // ${pr.status === "SENT" ? "PULL REQUEST OPENED" : pr.status === "FAILED" ? "FAILED" : "DRY RUN: NOTHING WAS SENT"}`.padEnd(133) + `║${ANSI.reset}`
             );
             console.log(
               `${ANSI.emerald}${ANSI.bold}╚══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝${ANSI.reset}`
             );
             console.log(
-              `  • ${ANSI.bold}Pull Request:${ANSI.reset}  ${ANSI.emerald}${pr.prUrl}${ANSI.reset} (${pr.isDryRun ? "Dry-Run Staged" : "Live Published"})`
+              pr.status === "SENT"
+                ? `  • ${ANSI.bold}Pull Request:${ANSI.reset}  ${ANSI.emerald}${pr.prUrl}${ANSI.reset} (opened)`
+                : pr.status === "FAILED"
+                  ? `  • ${ANSI.bold}Pull Request:${ANSI.reset}  ${ANSI.rose}Failed: ${pr.error}${ANSI.reset}`
+                  : `  • ${ANSI.bold}Pull Request:${ANSI.reset}  Dry run: nothing was sent. ${pr.dryRunReason ?? ""}`
             );
             console.log(
               `  • ${ANSI.bold}Git Branch:${ANSI.reset}    ${ANSI.sky}${pr.branchName}${ANSI.reset}${pr.commitSha ? ` (Commit: ${pr.commitSha})` : ""}`
             );
             console.log(
-              `  • ${ANSI.bold}Compare URL:${ANSI.reset}   ${ANSI.dim}${pr.compareUrl}${ANSI.reset}`
+              `  • ${ANSI.bold}Compare URL:${ANSI.reset}   ${ANSI.dim}${pr.compareUrl}${ANSI.reset}${pr.status === "SENT" ? "" : " (works once the branch is pushed)"}`
             );
             console.log(
               `  • ${ANSI.bold}CLI Command:${ANSI.reset}   ${ANSI.amber}${pr.ghCliCommand}${ANSI.reset}`
@@ -1204,6 +1235,29 @@ async function main() {
     console.log(
       `\n${ANSI.bgEmerald}${ANSI.bold}${ANSI.white} ✔ ALL LOAD-BEARING ARCHITECTURAL & STRATEGIC PREMISES HOLDING TRUE (EXIT 0) ${ANSI.reset}\n`
     );
+  }
+
+  if (expectation) {
+    const brokenList = brokenPremises
+      .map((p) => `${p.variableName} = ${p.currentValue} ${p.unit}`.trim())
+      .join(", ");
+    if (expectation.ok) {
+      console.log(
+        `${ANSI.emerald}${ANSI.bold}✔ EXPECTED OUTCOME: exactly the expected premise(s) are BROKEN [${expectedBroken!.join(", ")}] (${brokenList}). Exit 0.${ANSI.reset}\n`
+      );
+    } else {
+      if (expectation.missing.length > 0) {
+        console.log(
+          `${ANSI.rose}${ANSI.bold}✖ EXPECTED BROKEN BUT NOT BROKEN: ${expectation.missing.join(", ")}${ANSI.reset}`
+        );
+      }
+      if (expectation.unexpected.length > 0) {
+        console.log(
+          `${ANSI.rose}${ANSI.bold}✖ UNEXPECTED BROKEN PREMISE(S): ${expectation.unexpected.join(", ")}${ANSI.reset}`
+        );
+      }
+      console.log("");
+    }
   }
 
   process.exit(exitCode);

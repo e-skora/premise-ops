@@ -136,7 +136,19 @@ export function generatePremiseReplaySeries(params: {
     seed = 42,
   } = params;
 
-  const baseVal = Number(premise.currentValue) || 1.0;
+  // No reported value and no history: nothing to replay, never an invented baseline
+  const hasValue = String(premise.currentValue ?? "").trim() !== "";
+  if (
+    !hasValue &&
+    (premise.metricSamples || []).length === 0 &&
+    !(SEED_HISTORICAL_SERIES[premise.id] || []).length
+  ) {
+    return [];
+  }
+
+  const baseVal = hasValue
+    ? Number(premise.currentValue)
+    : (premise.metricSamples || []).at(-1)?.value ?? SEED_HISTORICAL_SERIES[premise.id]!.at(-1)!;
   const rand = seededRandom(seed + premise.id.length * 17);
 
   // 1. Historical Replay Scenario
@@ -559,10 +571,12 @@ export function runBacktestSimulation(
     const premiseStatusAtStep = new Map<string, PremiseStatus>();
     for (const art of targetArtifacts) {
       for (const p of art.premises) {
-        const series = premiseSeriesMap.get(p.id) || [Number(p.currentValue)];
-        const simVal = series[step] ?? Number(p.currentValue);
+        const series = premiseSeriesMap.get(p.id) || [];
+        const simVal: number | null =
+          series.length === 0 ? null : series[step] ?? series[series.length - 1];
+        // A premise with no data stays UNBOUND for the whole replay
         const evalRes = evaluatePremiseState(
-          simVal,
+          simVal ?? "",
           p.operator,
           p.thresholdValue,
           p.decayWarningMargin
@@ -636,6 +650,7 @@ export function runBacktestSimulation(
   let earliestBreachingPremiseId: string | null = null;
   let totalResilienceSum = 0;
   let totalPremiseCount = 0;
+  let scoredPremiseCount = 0;
 
   for (const art of targetArtifacts) {
     const artPremiseResults: PremiseBacktestResult[] = [];
@@ -655,18 +670,27 @@ export function runBacktestSimulation(
         decayWarningMargin: p.decayWarningMargin,
       });
 
-      const simVals = snaps.map((s) => s.simulatedValue);
-      const minSim = Math.min(...simVals);
-      const maxSim = Math.max(...simVals);
+      const simVals = snaps
+        .map((s) => s.simulatedValue)
+        .filter((v): v is number => v !== null);
+      const thresholdNum = Number(p.thresholdValue);
+      const minSim = simVals.length ? Math.min(...simVals) : thresholdNum;
+      const maxSim = simVals.length ? Math.max(...simVals) : thresholdNum;
 
-      const thresholdAdvice = calculateRecommendedThreshold({
-        operator: p.operator,
-        currentThreshold: p.thresholdValue,
-        minSimulated: minSim,
-        maxSimulated: maxSim,
-        decayWarningMargin: p.decayWarningMargin,
-        unit: p.unit,
-      });
+      const hasData = simVals.length > 0;
+      const thresholdAdvice = hasData
+        ? calculateRecommendedThreshold({
+            operator: p.operator,
+            currentThreshold: p.thresholdValue,
+            minSimulated: minSim,
+            maxSimulated: maxSim,
+            decayWarningMargin: p.decayWarningMargin,
+            unit: p.unit,
+          })
+        : {
+            recommendedThreshold: p.thresholdValue,
+            recommendedThresholdAdjustment: "No data to replay yet",
+          };
 
       if (metrics.breachStep !== null) {
         if (
@@ -678,7 +702,11 @@ export function runBacktestSimulation(
         }
       }
 
-      totalResilienceSum += metrics.resilienceScore;
+      // Premises with no data do not count toward any score
+      if (hasData) {
+        totalResilienceSum += metrics.resilienceScore;
+        scoredPremiseCount += 1;
+      }
 
       artPremiseResults.push({
         premiseId: p.id,
@@ -687,7 +715,8 @@ export function runBacktestSimulation(
         claim: p.claim,
         operator: p.operator,
         thresholdValue: p.thresholdValue,
-        initialValue: Number(p.currentValue),
+        initialValue: String(p.currentValue ?? "").trim() ? Number(p.currentValue) : null,
+        hasData,
         unit: p.unit,
         steps: snaps,
         survivalRatePct: metrics.survivalRatePct,
@@ -704,11 +733,12 @@ export function runBacktestSimulation(
       });
     }
 
+    const scoredPremises = artPremiseResults.filter((p) => p.hasData);
     const avgArtResilience =
-      artPremiseResults.length > 0
+      scoredPremises.length > 0
         ? Math.round(
-            artPremiseResults.reduce((acc, p) => acc + p.resilienceScore, 0) /
-              artPremiseResults.length
+            scoredPremises.reduce((acc, p) => acc + p.resilienceScore, 0) /
+              scoredPremises.length
           )
         : 100;
 
@@ -735,8 +765,8 @@ export function runBacktestSimulation(
   }
 
   const avgResilience =
-    totalPremiseCount > 0
-      ? Math.round(totalResilienceSum / totalPremiseCount)
+    scoredPremiseCount > 0
+      ? Math.round(totalResilienceSum / scoredPremiseCount)
       : 100;
 
   const portfolioRating =

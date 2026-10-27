@@ -408,8 +408,18 @@ describe("Horizon D: Production Telemetry Connectors & Live Outbound Dispatch", 
         dryRun: true,
       });
       expect(dryRunRes.ok).toBe(true);
-      expect(dryRunRes.statusCode).toBe(200);
-      expect(dryRunRes.summary).toContain("[Dry Run]");
+      expect(dryRunRes.status).toBe("DRY_RUN");
+      expect(dryRunRes.statusCode).toBe(0);
+      expect(dryRunRes.responseBody).toBeUndefined();
+      expect(dryRunRes.summary).toContain("Dry run: nothing was sent");
+
+      // No webhook URL: also a dry run, never a fake success
+      const noUrlRes = await dispatchSlackWebhookAlert({
+        webhookUrl: "",
+        event: sampleEvent,
+      });
+      expect(noUrlRes.status).toBe("DRY_RUN");
+      expect(noUrlRes.summary).toContain("no Slack webhook URL is set");
 
       // Live mock dispatch
       const origFetch = globalThis.fetch;
@@ -426,8 +436,22 @@ describe("Horizon D: Production Telemetry Connectors & Live Outbound Dispatch", 
         });
 
         expect(liveRes.ok).toBe(true);
+        expect(liveRes.status).toBe("SENT");
         expect(liveRes.statusCode).toBe(200);
         expect(liveRes.responseBody).toBe("ok");
+
+        // A rejected webhook is a FAILED result with Slack's real answer
+        globalThis.fetch = (async () => {
+          return new Response("invalid_token", { status: 403 });
+        }) as unknown as typeof fetch;
+        const failedRes = await dispatchSlackWebhookAlert({
+          webhookUrl:
+            "https://hooks.slack.com/services/T111/B222/real-webhook-hash",
+          event: sampleEvent,
+        });
+        expect(failedRes.ok).toBe(false);
+        expect(failedRes.status).toBe("FAILED");
+        expect(failedRes.error).toContain("invalid_token");
       } finally {
         globalThis.fetch = origFetch;
       }
@@ -458,7 +482,9 @@ describe("Horizon D: Production Telemetry Connectors & Live Outbound Dispatch", 
         dryRun: true,
       });
       expect(dryRes.ok).toBe(true);
-      expect(dryRes.statusCode).toBe(202);
+      expect(dryRes.status).toBe("DRY_RUN");
+      expect(dryRes.statusCode).toBe(0);
+      expect(dryRes.responseBody).toBeUndefined();
       expect(dryRes.dedupKey).toBe(`premise-${sampleEvent.id}`);
 
       // Mock live call
@@ -483,6 +509,7 @@ describe("Horizon D: Production Telemetry Connectors & Live Outbound Dispatch", 
         });
 
         expect(liveRes.ok).toBe(true);
+        expect(liveRes.status).toBe("SENT");
         expect(liveRes.statusCode).toBe(202);
         expect(liveRes.dedupKey).toBe(`premise-${sampleEvent.id}`);
       } finally {
@@ -593,7 +620,9 @@ describe("Horizon D: Production Telemetry Connectors & Live Outbound Dispatch", 
 
         expect(dispatchRes.dispatchLog).toBeDefined();
         expect(dispatchRes.dispatchLog.channel).toBe("SLACK_WEBHOOK");
-        expect(dispatchRes.dispatchLog.responseStatus).toBe(200);
+        expect(dispatchRes.dispatchLog.deliveryStatus).toBe("DRY_RUN");
+        expect(dispatchRes.dispatchLog.responseStatus).toBe(0);
+        expect(dispatchRes.dispatchLog.externalUrl).toBe("");
 
         // Check Block Kit payload
         const payload = JSON.parse(dispatchRes.dispatchLog.payloadPreview);
@@ -618,7 +647,9 @@ describe("Horizon D: Production Telemetry Connectors & Live Outbound Dispatch", 
 
         expect(dispatchRes.dispatchLog).toBeDefined();
         expect(dispatchRes.dispatchLog.channel).toBe("PAGERDUTY_EVENT");
-        expect(dispatchRes.dispatchLog.responseStatus).toBe(202);
+        expect(dispatchRes.dispatchLog.deliveryStatus).toBe("DRY_RUN");
+        expect(dispatchRes.dispatchLog.responseStatus).toBe(0);
+        expect(dispatchRes.dispatchLog.externalUrl).toBe("");
 
         const payload = JSON.parse(dispatchRes.dispatchLog.payloadPreview);
         expect(payload.event_action).toBe("trigger");

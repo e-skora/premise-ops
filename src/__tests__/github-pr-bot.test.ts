@@ -97,12 +97,44 @@ describe("Horizon B: Autonomous GitHub PR Bot & Branching Workflow", () => {
     });
 
     expect(prResult.ok).toBe(true);
+    expect(prResult.status).toBe("DRY_RUN");
     expect(prResult.isDryRun).toBe(true);
-    expect(prResult.prNumber).toBeGreaterThanOrEqual(900);
-    expect(prResult.prUrl).toContain("https://github.com/my-org/backend-repo/pull/");
+    // Nothing was sent, so there is no PR number and no link
+    expect(prResult.prNumber).toBeNull();
+    expect(prResult.prUrl).toBeNull();
+    expect(prResult.bodyMarkdown.length).toBeGreaterThan(100);
     expect(prResult.branchName).toBe("premise/teardown-adr-014");
     expect(prResult.compareUrl).toContain("compare/main...premise/teardown-adr-014");
     expect(prResult.ghCliCommand).toContain("gh pr create");
+  });
+
+  test("publishGitHubPullRequest returns FAILED with GitHub's real error", async () => {
+    evaluateAndPersistMetricUpdate({
+      variableName: "upstream_llm_input_cost_usd",
+      value: 0.95,
+      source: "test-eval",
+    });
+    const event = getAllInvalidationEvents()[0];
+    const origFetch = globalThis.fetch;
+    try {
+      globalThis.fetch = (async () =>
+        new Response('{"message":"Bad credentials"}', { status: 401 })) as unknown as typeof fetch;
+      const prResult = await publishGitHubPullRequest({
+        eventId: event.id,
+        event,
+        repo: "my-org/backend-repo",
+        githubToken: "test-token-not-real",
+        dryRun: false,
+      });
+      expect(prResult.ok).toBe(false);
+      expect(prResult.status).toBe("FAILED");
+      expect(prResult.prNumber).toBeNull();
+      expect(prResult.prUrl).toBeNull();
+      expect(prResult.error).toContain("401");
+      expect(prResult.error).toContain("Bad credentials");
+    } finally {
+      globalThis.fetch = origFetch;
+    }
   });
 
   test("dispatchInvalidationAlert with GITHUB_PR integrates with PR bot and logs in SQLite", async () => {
@@ -131,6 +163,9 @@ describe("Horizon B: Autonomous GitHub PR Bot & Branching Workflow", () => {
     expect(dispatchRes.prResult).toBeDefined();
     expect(dispatchRes.prResult?.branchName).toBe("premise/teardown-adr-014");
     expect(dispatchRes.prResult?.isDryRun).toBe(true);
+    expect(dispatchRes.dispatchLog.deliveryStatus).toBe("DRY_RUN");
+    expect(dispatchRes.dispatchLog.externalUrl).toBe("");
+    expect(dispatchRes.dispatchLog.summary).toContain("Dry run: nothing was sent");
 
     // Verify it is persisted in SQLite
     const updatedEvents = getAllInvalidationEvents();

@@ -169,19 +169,20 @@ export async function dispatchSlackWebhookAlert(params: {
 
   const summary = `Posted Block Kit Kill-Switch Alert to ${channel || "#arch-decision-drift"} (${event.variableName} = ${event.breakingValue})`;
 
-  const isRealSlackUrl =
-    typeof webhookUrl === "string" &&
-    webhookUrl.startsWith("http") &&
-    (webhookUrl.includes("hooks.slack.com") || !webhookUrl.includes("example.com"));
+  const hasWebhookUrl =
+    typeof webhookUrl === "string" && /^https?:\/\//i.test(webhookUrl.trim());
 
-  if (dryRun || !isRealSlackUrl) {
+  if (dryRun || !hasWebhookUrl) {
+    const reason = dryRun
+      ? "dry run was requested"
+      : "no Slack webhook URL is set";
     return {
       ok: true,
-      statusCode: 200,
-      webhookUrl: webhookUrl || "https://hooks.slack.com/services/T000/B000/mock",
-      summary: `[Dry Run] ${summary}`,
+      status: "DRY_RUN",
+      statusCode: 0,
+      webhookUrl: hasWebhookUrl ? webhookUrl : "",
+      summary: `Dry run: nothing was sent (${reason}). Alert prepared for ${channel || "#arch-decision-drift"}.`,
       payload,
-      responseBody: "ok",
     };
   }
 
@@ -204,6 +205,7 @@ export async function dispatchSlackWebhookAlert(params: {
     if (res.ok) {
       return {
         ok: true,
+        status: "SENT",
         statusCode: res.status,
         webhookUrl,
         summary,
@@ -214,6 +216,7 @@ export async function dispatchSlackWebhookAlert(params: {
 
     return {
       ok: false,
+      status: "FAILED",
       statusCode: res.status,
       webhookUrl,
       summary: `Slack dispatch failed with status ${res.status}`,
@@ -225,7 +228,8 @@ export async function dispatchSlackWebhookAlert(params: {
     const message = err instanceof Error ? err.message : String(err);
     return {
       ok: false,
-      statusCode: 500,
+      status: "FAILED",
+      statusCode: 0,
       webhookUrl,
       summary: `Slack dispatch request error: ${message}`,
       payload,
@@ -278,7 +282,7 @@ export async function testSlackWebhook(
 
   const latencyMs = Math.max(1, Date.now() - startMs);
 
-  if (dispatchRes.ok) {
+  if (dispatchRes.status === "SENT") {
     return {
       ok: true,
       connectorType: "SLACK",
@@ -296,8 +300,11 @@ export async function testSlackWebhook(
     ok: false,
     connectorType: "SLACK",
     latencyMs,
-    message: `Failed to dispatch to Slack: ${dispatchRes.error || "Unknown error"}`,
-    error: dispatchRes.error,
+    message:
+      dispatchRes.status === "DRY_RUN"
+        ? dispatchRes.summary
+        : `Failed to dispatch to Slack: ${dispatchRes.error || "Unknown error"}`,
+    error: dispatchRes.error || dispatchRes.summary,
   };
 }
 
@@ -395,25 +402,20 @@ export async function dispatchPagerDutyEvent(params: {
   const dedupKey = payload.dedup_key;
   const summary = `Triggered PagerDuty V2 Incident (severity: ${severity}, dedup_key: ${dedupKey})`;
 
-  const isRealKey =
-    routingKey &&
-    routingKey.trim().length >= 16 &&
-    !routingKey.includes("premise-arch-killswitch-pd-key") &&
-    !routingKey.includes("mock");
+  const hasRoutingKey = Boolean(routingKey && routingKey.trim());
 
-  if (dryRun || !isRealKey) {
+  if (dryRun || !hasRoutingKey) {
+    const reason = dryRun
+      ? "dry run was requested"
+      : "no PagerDuty routing key is set";
     return {
       ok: true,
-      statusCode: 202,
+      status: "DRY_RUN",
+      statusCode: 0,
       targetEndpoint,
       dedupKey,
-      summary: `[Dry Run] ${summary}`,
+      summary: `Dry run: nothing was sent (${reason}). Incident prepared with severity ${severity}.`,
       payload,
-      responseBody: {
-        status: "success",
-        message: "Event processed (Dry-run mode)",
-        dedup_key: dedupKey,
-      },
     };
   }
 
@@ -441,6 +443,7 @@ export async function dispatchPagerDutyEvent(params: {
     if (res.ok) {
       return {
         ok: true,
+        status: "SENT",
         statusCode: res.status,
         targetEndpoint,
         dedupKey,
@@ -452,6 +455,7 @@ export async function dispatchPagerDutyEvent(params: {
 
     return {
       ok: false,
+      status: "FAILED",
       statusCode: res.status,
       targetEndpoint,
       dedupKey,
@@ -464,7 +468,8 @@ export async function dispatchPagerDutyEvent(params: {
     const message = err instanceof Error ? err.message : String(err);
     return {
       ok: false,
-      statusCode: 500,
+      status: "FAILED",
+      statusCode: 0,
       targetEndpoint,
       dedupKey,
       summary: `PagerDuty dispatch request error: ${message}`,
@@ -518,7 +523,7 @@ export async function testPagerDutyConnection(
 
   const latencyMs = Math.max(1, Date.now() - startMs);
 
-  if (dispatchRes.ok) {
+  if (dispatchRes.status === "SENT") {
     return {
       ok: true,
       connectorType: "PAGERDUTY",
@@ -536,7 +541,10 @@ export async function testPagerDutyConnection(
     ok: false,
     connectorType: "PAGERDUTY",
     latencyMs,
-    message: `Failed to trigger PagerDuty event: ${dispatchRes.error || "Unknown error"}`,
-    error: dispatchRes.error,
+    message:
+      dispatchRes.status === "DRY_RUN"
+        ? dispatchRes.summary
+        : `Failed to trigger PagerDuty event: ${dispatchRes.error || "Unknown error"}`,
+    error: dispatchRes.error || dispatchRes.summary,
   };
 }

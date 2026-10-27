@@ -16,6 +16,8 @@ import {
   PremiseStatus,
   ProbeRecord,
   ProbeType,
+  ProbeConnectionStatus,
+  DispatchStatus,
   GitHubPrResult,
   ConnectorType,
   ConnectorSettingRecord,
@@ -55,6 +57,16 @@ import {
 import { INITIAL_SEED_ARTIFACTS, SEED_HISTORICAL_SERIES } from "./seed-data";
 import { getActiveSandboxDbPath } from "./sandbox-context";
 import { isPublicDemo } from "@/lib/demo-mode";
+import {
+  DEMO_SEED_SOURCE,
+  fetchLiveJson,
+  isAllowedInPublicDemo,
+  isLiveSource,
+  isOutsideUrl,
+  liveSourceLabel,
+  savedSourceLabel,
+} from "@/lib/live-feeds";
+import { loadSavedFeed, savedFeedDir } from "@/lib/saved-feeds";
 
 /**
  * Database file location. PREMISE_DB_PATH wins; the ./premise.db fallback is
@@ -178,6 +190,8 @@ function initSchema(db: DatabaseSync) {
       currentValue TEXT NOT NULL,
       decayWarningMargin REAL NOT NULL DEFAULT 0.10,
       status TEXT NOT NULL DEFAULT 'VALID',
+      valueSource TEXT DEFAULT NULL,
+      valueObservedAt TEXT DEFAULT NULL,
       FOREIGN KEY (artifactId) REFERENCES DecisionArtifact(id) ON DELETE CASCADE
     );
 
@@ -188,6 +202,8 @@ function initSchema(db: DatabaseSync) {
       targetUrlOrQuery TEXT NOT NULL,
       jsonPath TEXT NOT NULL DEFAULT '$.value',
       pollingIntervalSeconds INTEGER NOT NULL DEFAULT 60,
+      valueMultiplier REAL NOT NULL DEFAULT 1,
+      status TEXT NOT NULL DEFAULT 'ACTIVE',
       lastRunAt TEXT,
       lastLatencyMs INTEGER,
       lastRawResponse TEXT,
@@ -239,6 +255,8 @@ function initSchema(db: DatabaseSync) {
       responseStatus INTEGER NOT NULL DEFAULT 201,
       externalUrl TEXT NOT NULL,
       dispatchedAt TEXT NOT NULL,
+      deliveryStatus TEXT DEFAULT NULL,
+      errorMessage TEXT DEFAULT NULL,
       FOREIGN KEY (eventId) REFERENCES InvalidationEvent(id) ON DELETE CASCADE,
       FOREIGN KEY (artifactId) REFERENCES DecisionArtifact(id) ON DELETE CASCADE
     );
@@ -310,6 +328,20 @@ function initSchema(db: DatabaseSync) {
   } catch {
     // Column already exists
   }
+  for (const statement of [
+    "ALTER TABLE Probe ADD COLUMN valueMultiplier REAL NOT NULL DEFAULT 1;",
+    "ALTER TABLE Probe ADD COLUMN status TEXT NOT NULL DEFAULT 'ACTIVE';",
+    "ALTER TABLE Premise ADD COLUMN valueSource TEXT DEFAULT NULL;",
+    "ALTER TABLE Premise ADD COLUMN valueObservedAt TEXT DEFAULT NULL;",
+    "ALTER TABLE OutboundDispatchLog ADD COLUMN deliveryStatus TEXT DEFAULT NULL;",
+    "ALTER TABLE OutboundDispatchLog ADD COLUMN errorMessage TEXT DEFAULT NULL;",
+  ]) {
+    try {
+      db.exec(statement);
+    } catch {
+      // Column already exists
+    }
+  }
 }
 
 function parseDependsOnIds(raw?: string | null): string[] {
@@ -356,12 +388,50 @@ function seedIfEmpty(db: DatabaseSync) {
     }
   }
 
+  syncSeedLiveProbes(db);
+
   // Ensure MetricSample table is populated if upgrading an existing DB
   const sampleCount = db
     .prepare("SELECT COUNT(*) as cnt FROM MetricSample")
     .get() as { cnt: number };
   if (!sampleCount || sampleCount.cnt === 0) {
     seedHistoricalSamplesOnly(db);
+  }
+}
+
+/**
+ * Older databases seeded a demo feed for probes that now read real outside
+ * data. Point those probes at the real source and clear the demo value so the
+ * premise waits for its first real fetch.
+ */
+function syncSeedLiveProbes(db: DatabaseSync) {
+  for (const art of INITIAL_SEED_ARTIFACTS) {
+    for (const p of art.premises) {
+      for (const pr of p.probes) {
+        if (!isOutsideUrl(pr.targetUrlOrQuery)) continue;
+        const existing = db
+          .prepare("SELECT targetUrlOrQuery FROM Probe WHERE id = ?")
+          .get(pr.id) as { targetUrlOrQuery: string } | undefined;
+        if (!existing || existing.targetUrlOrQuery === pr.targetUrlOrQuery) continue;
+        db.prepare(
+          `UPDATE Probe SET probeType = ?, targetUrlOrQuery = ?, jsonPath = ?, pollingIntervalSeconds = ?,
+             valueMultiplier = ?, status = ?, lastRunAt = NULL, lastLatencyMs = NULL, lastRawResponse = NULL, lastError = NULL
+           WHERE id = ?`
+        ).run(
+          pr.probeType,
+          pr.targetUrlOrQuery,
+          pr.jsonPath,
+          pr.pollingIntervalSeconds,
+          pr.valueMultiplier ?? 1,
+          pr.status ?? "ACTIVE",
+          pr.id
+        );
+        db.prepare(
+          `UPDATE Premise SET currentValue = '', status = 'UNBOUND', valueSource = NULL, valueObservedAt = NULL
+           WHERE id = ? AND (valueSource IS NULL OR valueSource NOT LIKE 'live:%')`
+        ).run(p.id);
+      }
+    }
   }
 }
 
@@ -374,6 +444,7 @@ function seedHistoricalSamplesOnly(db: DatabaseSync) {
   const baseTime = new Date("2026-10-19T06:00:00.000Z").getTime();
   for (const art of INITIAL_SEED_ARTIFACTS) {
     for (const p of art.premises) {
+      if (!p.currentValue.trim()) continue;
       const series = SEED_HISTORICAL_SERIES[p.id] || [Number(p.currentValue)];
       series.forEach((val, idx) => {
         const ts = new Date(baseTime + idx * 1800 * 1000).toISOString();
@@ -400,13 +471,13 @@ function insertSingleSeedArtifact(
   `);
 
   const insertPremise = db.prepare(`
-    INSERT INTO Premise (id, artifactId, claim, variableName, unit, operator, thresholdValue, currentValue, decayWarningMargin, status)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO Premise (id, artifactId, claim, variableName, unit, operator, thresholdValue, currentValue, decayWarningMargin, status, valueSource, valueObservedAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const insertProbe = db.prepare(`
-    INSERT INTO Probe (id, premiseId, probeType, targetUrlOrQuery, jsonPath, pollingIntervalSeconds, lastRunAt, lastLatencyMs, lastRawResponse, lastError)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO Probe (id, premiseId, probeType, targetUrlOrQuery, jsonPath, pollingIntervalSeconds, valueMultiplier, status, lastRunAt, lastLatencyMs, lastRawResponse, lastError)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const upsertTelemetry = db.prepare(`
@@ -461,6 +532,7 @@ function insertSingleSeedArtifact(
       p.thresholdValue,
       p.decayWarningMargin
     );
+    const hasSeedValue = p.currentValue.trim() !== "";
     insertPremise.run(
       p.id,
       art.id,
@@ -471,14 +543,37 @@ function insertSingleSeedArtifact(
       p.thresholdValue,
       p.currentValue,
       p.decayWarningMargin,
-      evalRes.status
+      evalRes.status,
+      hasSeedValue ? DEMO_SEED_SOURCE : null,
+      hasSeedValue ? art.lastEvaluatedAt : null
     );
+
+    if (!hasSeedValue) {
+      // Live premises start empty and wait for their first real fetch
+      for (const pr of p.probes) {
+        insertProbe.run(
+          pr.id,
+          p.id,
+          pr.probeType,
+          pr.targetUrlOrQuery,
+          pr.jsonPath,
+          pr.pollingIntervalSeconds,
+          pr.valueMultiplier ?? 1,
+          pr.status ?? "ACTIVE",
+          null,
+          null,
+          null,
+          null
+        );
+      }
+      continue;
+    }
 
     upsertTelemetry.run(
       p.variableName,
       p.currentValue,
       p.unit,
-      "seed-telemetry",
+      DEMO_SEED_SOURCE,
       art.lastEvaluatedAt
     );
 
@@ -503,6 +598,8 @@ function insertSingleSeedArtifact(
         pr.targetUrlOrQuery,
         pr.jsonPath,
         pr.pollingIntervalSeconds,
+        pr.valueMultiplier ?? 1,
+        pr.status ?? "ACTIVE",
         pr.lastRunAt,
         pr.lastLatencyMs,
         pr.lastRawResponse,
@@ -593,6 +690,8 @@ export function getAllArtifactsWithRelations(): DecisionArtifactRecord[] {
     currentValue: string;
     decayWarningMargin: number;
     status: PremiseStatus;
+    valueSource: string | null;
+    valueObservedAt: string | null;
   }>;
 
   const probeRows = db.prepare("SELECT * FROM Probe").all() as Array<{
@@ -602,6 +701,8 @@ export function getAllArtifactsWithRelations(): DecisionArtifactRecord[] {
     targetUrlOrQuery: string;
     jsonPath: string;
     pollingIntervalSeconds: number;
+    valueMultiplier: number;
+    status: ProbeConnectionStatus;
     lastRunAt: string | null;
     lastLatencyMs: number | null;
     lastRawResponse: string | null;
@@ -1020,6 +1121,7 @@ export function updatePremiseAndProbeConfig(params: {
   targetUrlOrQuery?: string;
   jsonPath?: string;
   pollingIntervalSeconds?: number;
+  valueMultiplier?: number;
 }): {
   artifacts: DecisionArtifactRecord[];
   invalidationEvents: InvalidationEventRecord[];
@@ -1034,6 +1136,8 @@ export function updatePremiseAndProbeConfig(params: {
         claim: string;
         variableName: string;
         currentValue: string;
+        valueSource: string | null;
+        valueObservedAt: string | null;
       }
     | undefined;
 
@@ -1066,7 +1170,8 @@ export function updatePremiseAndProbeConfig(params: {
     params.targetUrlOrQuery !== undefined ||
     params.probeType !== undefined ||
     params.jsonPath !== undefined ||
-    params.pollingIntervalSeconds !== undefined
+    params.pollingIntervalSeconds !== undefined ||
+    params.valueMultiplier !== undefined
   ) {
     const existingProbe = db
       .prepare("SELECT * FROM Probe WHERE premiseId = ? LIMIT 1")
@@ -1077,29 +1182,43 @@ export function updatePremiseAndProbeConfig(params: {
           targetUrlOrQuery: string;
           jsonPath: string;
           pollingIntervalSeconds: number;
+          valueMultiplier: number;
         }
       | undefined;
 
     if (existingProbe) {
+      const nextTarget =
+        params.targetUrlOrQuery !== undefined
+          ? params.targetUrlOrQuery.trim()
+          : existingProbe.targetUrlOrQuery;
+      const nextMultiplier =
+        params.valueMultiplier !== undefined && Number(params.valueMultiplier) > 0
+          ? Number(params.valueMultiplier)
+          : existingProbe.valueMultiplier;
+      // A probe goes live only once a person gives it a real source
       db.prepare(
         `UPDATE Probe
-         SET probeType = ?, targetUrlOrQuery = ?, jsonPath = ?, pollingIntervalSeconds = ?
+         SET probeType = ?, targetUrlOrQuery = ?, jsonPath = ?, pollingIntervalSeconds = ?, valueMultiplier = ?, status = ?
          WHERE id = ?`
       ).run(
         params.probeType || existingProbe.probeType,
-        params.targetUrlOrQuery?.trim() || existingProbe.targetUrlOrQuery,
+        nextTarget,
         params.jsonPath?.trim() || existingProbe.jsonPath,
         params.pollingIntervalSeconds || existingProbe.pollingIntervalSeconds,
+        nextMultiplier,
+        nextTarget ? "ACTIVE" : "UNBOUND",
         existingProbe.id
       );
     }
   }
 
-  // Re-evaluate premise against its current telemetry value under the new operator/threshold/margin
+  // Re-evaluate the premise's existing value under the new operator/threshold/margin.
+  // The value and where it came from stay the same.
   evaluateAndPersistMetricUpdate({
     premiseId: params.premiseId,
     value: existingPremise.currentValue,
-    source: "inline-config-editor",
+    source: existingPremise.valueSource || "inline-config-editor",
+    observedAt: existingPremise.valueObservedAt || undefined,
   });
 
   return {
@@ -1119,6 +1238,10 @@ export function evaluateAndPersistMetricUpdate(params: {
   source?: string;
   latencyMs?: number;
   rawPayload?: Record<string, unknown>;
+  /** When the value was really observed; defaults to now */
+  observedAt?: string;
+  /** Set when a probe run produced this value; only that probe's run record is updated */
+  fromProbeId?: string;
 }): {
   updatedPremises: PremiseRecord[];
   triggeredEvents: InvalidationEventRecord[];
@@ -1152,22 +1275,25 @@ export function evaluateAndPersistMetricUpdate(params: {
   const affectedArtifactIds = new Set<string>();
   const triggeredEvents: InvalidationEventRecord[] = [];
 
+  const hasValue = strValue.trim() !== "";
   for (const prem of matchingPremises) {
     affectedArtifactIds.add(prem.artifactId);
 
-    db.prepare(
-      `INSERT OR REPLACE INTO TelemetryMetric (variableName, value, unit, source, updatedAt)
-       VALUES (?, ?, ?, ?, ?)`
-    ).run(
-      prem.variableName,
-      strValue,
-      prem.unit,
-      params.source || "webhook-ingest",
-      nowIso
-    );
+    if (hasValue) {
+      db.prepare(
+        `INSERT OR REPLACE INTO TelemetryMetric (variableName, value, unit, source, updatedAt)
+         VALUES (?, ?, ?, ?, ?)`
+      ).run(
+        prem.variableName,
+        strValue,
+        prem.unit,
+        params.source || "webhook-ingest",
+        nowIso
+      );
+    }
 
     const numVal = Number(strValue);
-    if (!Number.isNaN(numVal)) {
+    if (hasValue && !Number.isNaN(numVal)) {
       db.prepare(
         `INSERT INTO MetricSample (id, premiseId, variableName, value, source, recordedAt)
          VALUES (?, ?, ?, ?, ?, ?)`
@@ -1192,10 +1318,16 @@ export function evaluateAndPersistMetricUpdate(params: {
     const previousStatus = prem.status;
 
     db.prepare(
-      `UPDATE Premise SET currentValue = ?, status = ? WHERE id = ?`
-    ).run(strValue, evalRes.status, prem.id);
+      `UPDATE Premise SET currentValue = ?, status = ?, valueSource = ?, valueObservedAt = ? WHERE id = ?`
+    ).run(
+      strValue,
+      evalRes.status,
+      hasValue ? params.source || "webhook-ingest" : null,
+      hasValue ? params.observedAt || nowIso : null,
+      prem.id
+    );
 
-    const latency = params.latencyMs ?? Math.floor(11 + Math.random() * 19);
+    const latency = params.latencyMs ?? null;
     const rawResponseObj = params.rawPayload ?? {
       source: params.source || "telemetry-stream",
       evaluatedAt: nowIso,
@@ -1210,11 +1342,13 @@ export function evaluateAndPersistMetricUpdate(params: {
       },
     };
 
-    db.prepare(
-      `UPDATE Probe
-       SET lastRunAt = ?, lastLatencyMs = ?, lastRawResponse = ?, lastError = NULL
-       WHERE premiseId = ?`
-    ).run(nowIso, latency, JSON.stringify(rawResponseObj, null, 2), prem.id);
+    if (params.fromProbeId) {
+      db.prepare(
+        `UPDATE Probe
+         SET lastRunAt = ?, lastLatencyMs = ?, lastRawResponse = ?, lastError = NULL
+         WHERE id = ?`
+      ).run(nowIso, latency, JSON.stringify(rawResponseObj, null, 2), params.fromProbeId);
+    }
 
     if (evalRes.status === "BROKEN") {
       const artifactRow = db
@@ -1338,6 +1472,83 @@ export function evaluateAndPersistMetricUpdate(params: {
 }
 
 /**
+ * Runs one HTTP_JSON_PATH probe against a real outside URL. On success the
+ * premise gets the real value and its fetch time. On any failure the premise
+ * keeps its last real value and the probe records the real error.
+ */
+async function runOutsideHttpProbe(
+  probe: {
+    id: string;
+    premiseId: string;
+    targetUrlOrQuery: string;
+    jsonPath: string;
+    valueMultiplier: number;
+  },
+  allowOutbound: boolean
+): Promise<void> {
+  const db = getDb();
+  const url = probe.targetUrlOrQuery.trim();
+  const runAt = new Date().toISOString();
+  const recordError = (message: string, latencyMs: number | null) => {
+    db.prepare(
+      "UPDATE Probe SET lastRunAt = ?, lastLatencyMs = ?, lastError = ? WHERE id = ?"
+    ).run(runAt, latencyMs, message, probe.id);
+  };
+
+  if (!allowOutbound && !isAllowedInPublicDemo(url)) {
+    recordError(
+      `Blocked in the public demo: outside fetches are off except the OpenRouter models list. Not fetched: ${url}`,
+      null
+    );
+    return;
+  }
+
+  // CI reads a saved copy instead of the internet (PREMISE_FEED_FIXTURE_DIR)
+  const fixtureDir = savedFeedDir();
+  const res = fixtureDir ? loadSavedFeed(url, fixtureDir) : await fetchLiveJson(url);
+  if (!res.ok) {
+    recordError(res.error, res.latencyMs);
+    return;
+  }
+
+  const found = extractJsonPath(res.json, probe.jsonPath);
+  const num = typeof found === "number" ? found : typeof found === "string" ? Number(found) : NaN;
+  if (found === undefined || found === null) {
+    recordError(`Field not found: ${probe.jsonPath} in the response from ${url}`, res.latencyMs);
+    return;
+  }
+  if (!Number.isFinite(num)) {
+    recordError(
+      `Field ${probe.jsonPath} is not a number (got ${JSON.stringify(found).slice(0, 80)})`,
+      res.latencyMs
+    );
+    return;
+  }
+
+  const multiplier = Number(probe.valueMultiplier) || 1;
+  // toPrecision keeps float noise (e.g. 1.9999999999999998) out of the stored value
+  const value = Number((num * multiplier).toPrecision(12));
+  evaluateAndPersistMetricUpdate({
+    premiseId: probe.premiseId,
+    value,
+    source: fixtureDir ? savedSourceLabel(url) : liveSourceLabel(url),
+    observedAt: res.fetchedAt,
+    latencyMs: res.latencyMs,
+    fromProbeId: probe.id,
+    rawPayload: {
+      url,
+      fetchedAt: res.fetchedAt,
+      servedFromCache: res.fromCache,
+      ...(fixtureDir ? { savedCopy: true } : {}),
+      jsonPath: probe.jsonPath,
+      extracted: found,
+      valueMultiplier: multiplier,
+      value,
+    },
+  });
+}
+
+/**
  * Executes active Probes against the live telemetry store, read-only SQLite SQL_METRIC engine,
  * PromQL time-series evaluator, or remote HTTP endpoints.
  */
@@ -1378,17 +1589,19 @@ export async function executeActiveProbes(options?: {
     }
   }
 
+  // Suggested probes with no real source (status UNBOUND) never run
   let query = `
     SELECT pr.*, pm.variableName, pm.currentValue, pm.thresholdValue, pm.operator, pm.unit, pm.artifactId
     FROM Probe pr
     JOIN Premise pm ON pr.premiseId = pm.id
+    WHERE pr.status != 'UNBOUND'
   `;
   const params: string[] = [];
   if (options?.premiseId) {
-    query += " WHERE pr.premiseId = ?";
+    query += " AND pr.premiseId = ?";
     params.push(options.premiseId);
   } else if (options?.artifactId) {
-    query += " WHERE pm.artifactId = ?";
+    query += " AND pm.artifactId = ?";
     params.push(options.artifactId);
   }
 
@@ -1399,6 +1612,7 @@ export async function executeActiveProbes(options?: {
     targetUrlOrQuery: string;
     jsonPath: string;
     pollingIntervalSeconds: number;
+    valueMultiplier: number;
     variableName: string;
     currentValue: string;
     thresholdValue: string;
@@ -1413,6 +1627,13 @@ export async function executeActiveProbes(options?: {
     const startMs = Date.now();
     let extractedVal: string | number | undefined;
     let rawPayload: Record<string, unknown> | undefined;
+    let valueSource: string | undefined;
+
+    if (probe.probeType === "HTTP_JSON_PATH" && isOutsideUrl(probe.targetUrlOrQuery)) {
+      await runOutsideHttpProbe(probe, allowOutbound);
+      probesExecuted += 1;
+      continue;
+    }
 
     if (probe.probeType === "SQL_METRIC" && !options?.applyMicroDrift) {
       const sqlRes = executeReadOnlySqlMetricQuery(
@@ -1452,6 +1673,7 @@ export async function executeActiveProbes(options?: {
             if (liveRes.ok && liveRes.value !== null) {
               extractedVal = liveRes.value;
               promLiveSucceeded = true;
+              valueSource = liveSourceLabel(promConfig.baseUrl);
               rawPayload = {
                 engine: "prometheus-live-http",
                 baseUrl: promConfig.baseUrl,
@@ -1514,6 +1736,7 @@ export async function executeActiveProbes(options?: {
             );
             if (ddRes.ok && ddRes.latestValue !== null) {
               extractedVal = ddRes.latestValue;
+              valueSource = liveSourceLabel(`https://api.${ddConfig.site || "datadoghq.com"}`);
               rawPayload = {
                 engine: "datadog-metrics-v2-live",
                 site: ddConfig.site || "datadoghq.com",
@@ -1535,38 +1758,19 @@ export async function executeActiveProbes(options?: {
           // Fallback to local telemetry store
         }
       }
-    } else if (
-      probe.probeType === "HTTP_JSON_PATH" &&
-      probe.targetUrlOrQuery.startsWith("http") &&
-      allowOutbound
-    ) {
-      try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 2500);
-        const res = await fetch(probe.targetUrlOrQuery, {
-          signal: controller.signal,
-          headers: { Accept: "application/json" },
-        });
-        clearTimeout(timer);
-        if (res.ok) {
-          const json = (await res.json()) as Record<string, unknown>;
-          rawPayload = json;
-          const found = extractJsonPath(json, probe.jsonPath);
-          if (typeof found === "number" || typeof found === "string") {
-            extractedVal = found;
-          }
-        }
-      } catch {
-        // Fallback to local telemetry store
-      }
     }
 
+    // The app's own demo feed: values come from this database, not the outside world
     if (extractedVal === undefined) {
       let currentVal =
         liveSnapshot[probe.variableName] ?? probe.currentValue;
       const numVal = Number(currentVal);
 
-      if (options?.applyMicroDrift && !Number.isNaN(numVal)) {
+      if (
+        options?.applyMicroDrift &&
+        String(currentVal).trim() !== "" &&
+        !Number.isNaN(numVal)
+      ) {
         // Apply realistic micro-telemetry jitter (+/- 0.8%) for SSE live stream visualization
         const delta = numVal * (Math.random() * 0.014 - 0.007);
         const decimals =
@@ -1593,18 +1797,25 @@ export async function executeActiveProbes(options?: {
       }
     }
 
-    const elapsedMs = Math.max(
-      8,
-      Date.now() - startMs + Math.floor(Math.random() * 14)
-    );
+    if (extractedVal === undefined || String(extractedVal).trim() === "") {
+      // Nothing to report (e.g. a premise with no value yet and no source)
+      db.prepare("UPDATE Probe SET lastRunAt = ? WHERE id = ?").run(
+        new Date().toISOString(),
+        probe.id
+      );
+      probesExecuted += 1;
+      continue;
+    }
+
     evaluateAndPersistMetricUpdate({
       premiseId: probe.premiseId,
       value: extractedVal,
-      source: options?.applyMicroDrift
-        ? "sse-autonomous-daemon"
-        : `probe:${probe.probeType}`,
-      latencyMs: elapsedMs,
+      source:
+        valueSource ??
+        (options?.applyMicroDrift ? "sse-autonomous-daemon" : `probe:${probe.probeType}`),
+      latencyMs: Date.now() - startMs,
       rawPayload,
+      fromProbeId: probe.id,
     });
     probesExecuted += 1;
   }
@@ -1633,17 +1844,11 @@ export function insertCompiledArtifact(
     `art-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   const combinator: LogicCombinator = compiled.logicCombinator || "ANY";
 
-  const premiseStatuses: PremiseStatus[] = compiled.premises.map((p) => {
-    const evalRes = evaluatePremiseState(
-      p.currentValue,
-      p.operator,
-      p.thresholdValue,
-      p.decayWarningMargin
-    );
-    return evalRes.status;
-  });
-
-  const artifactStatus = computeArtifactStatus(premiseStatuses, combinator);
+  // A newly compiled premise has no value until a probe really reports one
+  const artifactStatus = computeArtifactStatus(
+    compiled.premises.map(() => "UNBOUND" as PremiseStatus),
+    combinator
+  );
 
   db.prepare(
     `INSERT INTO DecisionArtifact (id, title, type, rawContent, targetLocus, blastRadius, logicCombinator, dependsOnIds, cascadedFromId, monthlyCloudSpendUsd, maintenanceHoursPerMonth, realizedAnnualSavingsUsd, status, createdAt, lastEvaluatedAt)
@@ -1668,16 +1873,10 @@ export function insertCompiledArtifact(
     const p = compiled.premises[i];
     const premiseId = `prem-${Date.now()}-${i}-${Math.floor(Math.random() * 1000)}`;
     const probeId = `probe-${Date.now()}-${i}-${Math.floor(Math.random() * 1000)}`;
-    const evalRes = evaluatePremiseState(
-      p.currentValue,
-      p.operator,
-      p.thresholdValue,
-      p.decayWarningMargin
-    );
 
     db.prepare(
-      `INSERT INTO Premise (id, artifactId, claim, variableName, unit, operator, thresholdValue, currentValue, decayWarningMargin, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO Premise (id, artifactId, claim, variableName, unit, operator, thresholdValue, currentValue, decayWarningMargin, status, valueSource, valueObservedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, '', ?, 'UNBOUND', NULL, NULL)`
     ).run(
       premiseId,
       artifactId,
@@ -1686,74 +1885,23 @@ export function insertCompiledArtifact(
       p.unit,
       p.operator,
       String(p.thresholdValue),
-      String(p.currentValue),
-      p.decayWarningMargin,
-      evalRes.status
+      p.decayWarningMargin
     );
 
+    const target = (p.recommendedProbe.targetUrlOrQuery || "").trim();
+    const probeStatus = target ? p.recommendedProbe.status ?? "UNBOUND" : "UNBOUND";
     db.prepare(
-      `INSERT OR REPLACE INTO TelemetryMetric (variableName, value, unit, source, updatedAt)
-       VALUES (?, ?, ?, ?, ?)`
-    ).run(
-      p.variableName,
-      String(p.currentValue),
-      p.unit,
-      "compiler-initial",
-      nowIso
-    );
-
-    const numVal = Number(p.currentValue);
-    if (!Number.isNaN(numVal)) {
-      // Seed 6 baseline historical samples for newly compiled premises
-      for (let s = 5; s >= 0; s--) {
-        const factor =
-          1 +
-          s *
-            0.025 *
-            (p.operator === "GT" || p.operator === "GTE" ? 1 : -1);
-        const sampleVal = Number((numVal * factor).toFixed(3));
-        const ts = new Date(Date.now() - s * 600_000).toISOString();
-        db.prepare(
-          `INSERT INTO MetricSample (id, premiseId, variableName, value, source, recordedAt)
-           VALUES (?, ?, ?, ?, ?, ?)`
-        ).run(
-          `smp-${premiseId}-${s}`,
-          premiseId,
-          p.variableName,
-          sampleVal,
-          "compiler-baseline",
-          ts
-        );
-      }
-    }
-
-    const initialRawResponse = JSON.stringify(
-      {
-        source: p.recommendedProbe.targetUrlOrQuery,
-        probeType: p.recommendedProbe.probeType,
-        metrics: {
-          [p.variableName]: Number.isNaN(numVal) ? p.currentValue : numVal,
-        },
-        value: Number.isNaN(numVal) ? p.currentValue : numVal,
-        timestamp: nowIso,
-      },
-      null,
-      2
-    );
-
-    db.prepare(
-      `INSERT INTO Probe (id, premiseId, probeType, targetUrlOrQuery, jsonPath, pollingIntervalSeconds, lastRunAt, lastLatencyMs, lastRawResponse, lastError)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`
+      `INSERT INTO Probe (id, premiseId, probeType, targetUrlOrQuery, jsonPath, pollingIntervalSeconds, valueMultiplier, status, lastRunAt, lastLatencyMs, lastRawResponse, lastError)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL)`
     ).run(
       probeId,
       premiseId,
       p.recommendedProbe.probeType,
-      p.recommendedProbe.targetUrlOrQuery,
-      p.recommendedProbe.jsonPath || `$.metrics.${p.variableName}`,
+      target,
+      p.recommendedProbe.jsonPath || "$.value",
       p.recommendedProbe.pollingIntervalSeconds,
-      nowIso,
-      16,
-      initialRawResponse
+      p.recommendedProbe.valueMultiplier ?? 1,
+      probeStatus
     );
   }
 
@@ -1800,14 +1948,17 @@ export async function dispatchInvalidationAlert(params: {
 
   const nowIso = new Date().toISOString();
   const dispatchId = `dsp-${Date.now()}-${Math.floor(Math.random() * 999)}`;
-  const prNumber = 910 + Math.floor(Math.random() * 85);
 
   let targetEndpoint = params.targetEndpoint || "";
   let summary = "";
+  // Only set when something real exists at that address
   let externalUrl = "";
   let payloadPreview = "";
   let prResult: GitHubPrResult | undefined;
-  let responseStatus = 201;
+  // 0 means no outside service answered
+  let responseStatus = 0;
+  let deliveryStatus: DispatchStatus = "DRY_RUN";
+  let errorMessage: string | null = null;
 
   if (params.channel === "GITHUB_PR") {
     const allArts = getAllArtifactsWithRelations();
@@ -1824,34 +1975,40 @@ export async function dispatchInvalidationAlert(params: {
     });
 
     targetEndpoint = prResult.targetEndpoint;
-    summary = prResult.isDryRun
-      ? `Staged Teardown PR #${prResult.prNumber} (${prResult.branchName}): ${prResult.title}`
-      : `Opened Autonomous Teardown PR #${prResult.prNumber}: ${prResult.title}`;
-    externalUrl = prResult.prUrl;
+    deliveryStatus = prResult.status;
+    errorMessage = prResult.error ?? null;
+    if (prResult.status === "SENT") {
+      summary = `Opened teardown PR #${prResult.prNumber}: ${prResult.title}`;
+      externalUrl = prResult.prUrl ?? "";
+      responseStatus = 201;
+    } else if (prResult.status === "FAILED") {
+      summary = `Failed: ${prResult.error}`;
+    } else {
+      summary = `Dry run: nothing was sent. ${prResult.dryRunReason ?? ""} PR drafted for branch ${prResult.branchName}: ${prResult.title}`.replace(/\s+/g, " ");
+    }
     payloadPreview = JSON.stringify(
       {
+        status: prResult.status,
         prNumber: prResult.prNumber,
+        prUrl: prResult.prUrl,
         branchName: prResult.branchName,
         commitSha: prResult.commitSha,
-        isDryRun: prResult.isDryRun,
-        compareUrl: prResult.compareUrl,
         ghCliCommand: prResult.ghCliCommand,
         title: prResult.title,
-        bodyMarkdownPreview: prResult.bodyMarkdown.slice(0, 350) + "...",
+        bodyMarkdown: prResult.bodyMarkdown,
       },
       null,
       2
     );
   } else if (params.channel === "GITHUB_ISSUE") {
-    targetEndpoint =
-      targetEndpoint || "https://api.github.com/repos/org/core-monorepo/issues";
-    summary = `Created Kill-Switch Issue #${prNumber}: [PREMISE INVALIDATED] ${ev.artifactTitle}`;
-    externalUrl = `https://github.com/org/core-monorepo/issues/${prNumber}`;
+    // Issue creation is not wired to GitHub yet: this is always a draft
+    targetEndpoint = targetEndpoint || "https://api.github.com/repos/{owner}/{repo}/issues";
+    summary = `Dry run: nothing was sent. Issue drafted: [PREMISE INVALIDATED] ${ev.artifactTitle}`;
     payloadPreview = JSON.stringify(
       {
-        title: `[PREMISE KILL-SWITCH] ${ev.artifactTitle} — ${ev.variableName} = ${ev.breakingValue}`,
-        assignees: ["sre-oncall", "arch-council"],
-        labels: ["premise-broken", "priority:p1"],
+        title: `[PREMISE KILL-SWITCH] ${ev.artifactTitle} (${ev.variableName} = ${ev.breakingValue})`,
+        labels: ["premise-broken"],
+        body: ev.remediationPlan,
       },
       null,
       2
@@ -1877,10 +2034,6 @@ export async function dispatchInvalidationAlert(params: {
       }
     }
 
-    if (!webhookUrl) {
-      webhookUrl = "https://hooks.slack.com/services/T000/B000/arch-killswitch";
-    }
-
     const slackResult = await dispatchSlackWebhookAlert({
       webhookUrl,
       event: ev,
@@ -1890,10 +2043,10 @@ export async function dispatchInvalidationAlert(params: {
     });
 
     targetEndpoint = slackResult.webhookUrl;
-    summary = slackResult.summary;
-    externalUrl = `slack://channel?name=${encodeURIComponent(
-      defaultChannel.replace(/^#/, "")
-    )}`;
+    deliveryStatus = slackResult.status;
+    errorMessage = slackResult.error ?? null;
+    summary =
+      slackResult.status === "FAILED" ? `Failed: ${slackResult.error}` : slackResult.summary;
     payloadPreview = JSON.stringify(slackResult.payload, null, 2);
     responseStatus = slackResult.statusCode;
   } else {
@@ -1918,10 +2071,6 @@ export async function dispatchInvalidationAlert(params: {
       }
     }
 
-    if (!routingKey) {
-      routingKey = "premise-arch-killswitch-pd-key";
-    }
-
     const pdResult = await dispatchPagerDutyEvent({
       routingKey,
       event: ev,
@@ -1931,17 +2080,17 @@ export async function dispatchInvalidationAlert(params: {
     });
 
     targetEndpoint = pdResult.targetEndpoint;
-    summary = pdResult.summary;
-    externalUrl = `https://app.pagerduty.com/incidents/dedup/${encodeURIComponent(
-      pdResult.dedupKey
-    )}`;
+    deliveryStatus = pdResult.status;
+    errorMessage = pdResult.error ?? null;
+    summary =
+      pdResult.status === "FAILED" ? `Failed: ${pdResult.error}` : pdResult.summary;
     payloadPreview = JSON.stringify(pdResult.payload, null, 2);
     responseStatus = pdResult.statusCode;
   }
 
   db.prepare(
-    `INSERT INTO OutboundDispatchLog (id, eventId, artifactId, channel, targetEndpoint, summary, payloadPreview, responseStatus, externalUrl, dispatchedAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO OutboundDispatchLog (id, eventId, artifactId, channel, targetEndpoint, summary, payloadPreview, responseStatus, externalUrl, dispatchedAt, deliveryStatus, errorMessage)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     dispatchId,
     ev.id,
@@ -1952,7 +2101,9 @@ export async function dispatchInvalidationAlert(params: {
     payloadPreview,
     responseStatus,
     externalUrl,
-    nowIso
+    nowIso,
+    deliveryStatus,
+    errorMessage
   );
 
   const dispatchLog: OutboundDispatchLogRecord = {
@@ -1966,6 +2117,8 @@ export async function dispatchInvalidationAlert(params: {
     responseStatus,
     externalUrl,
     dispatchedAt: nowIso,
+    deliveryStatus,
+    errorMessage,
   };
 
   return {

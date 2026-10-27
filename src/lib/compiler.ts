@@ -1,18 +1,40 @@
+import Anthropic from "@anthropic-ai/sdk";
 import {
   ArtifactType,
+  ArtifactTypeEnum,
   CompiledArtifactOutput,
   CompiledArtifactOutputSchema,
   CompiledPremise,
+  LogicCombinatorEnum,
   Operator,
+  OperatorEnum,
   ProbeType,
+  ProbeTypeEnum,
 } from "./types";
 import { COMPILER_TEMPLATES } from "@/db/seed-data";
 import { isPublicDemo } from "./demo-mode";
+
+export type LlmProvider = "anthropic" | "openai";
+
+// Docs: https://platform.claude.com/docs/en/about-claude/models/overview
+export const DEFAULT_ANTHROPIC_MODEL = "claude-haiku-5-5";
+// Docs: https://developers.openai.com/api/docs/models/gpt-6-luna
+export const DEFAULT_OPENAI_MODEL = "gpt-6-luna";
+
+export interface CompileResult {
+  compiled: CompiledArtifactOutput;
+  compilerEngine: "llm-structured-zod" | "deterministic-ast-parser";
+  llmProvider?: LlmProvider;
+  llmModel?: string;
+  /** Set when an AI extraction was attempted and failed */
+  notice?: string;
+}
 
 /**
  * Pipeline A: The Premise Compiler
  * Compiles raw ADR / GitHub PR / Strategy Memo / Vendor Contract markdown into
  * structured, Zod-validated DecisionArtifact + Premise + Probe specifications.
+ * A compiled premise never carries a value, and its probe is only a suggestion.
  */
 export async function compileDecisionArtifact(input: {
   rawContent: string;
@@ -20,10 +42,7 @@ export async function compileDecisionArtifact(input: {
   overrideType?: ArtifactType;
   overrideTitle?: string;
   overrideLocus?: string;
-}): Promise<{
-  compiled: CompiledArtifactOutput;
-  compilerEngine: "llm-structured-zod" | "deterministic-ast-parser";
-}> {
+}): Promise<CompileResult> {
   const { rawContent, templateId, overrideType, overrideTitle, overrideLocus } =
     input;
 
@@ -41,77 +60,37 @@ export async function compileDecisionArtifact(input: {
         targetLocus: overrideLocus || matchedTemplate.precompiled.targetLocus,
       });
       return {
-        compiled: validated,
+        compiled: asSuggestionsOnly(validated),
         compilerEngine: "deterministic-ast-parser",
       };
     }
   }
 
-  // 2. If OpenAI API Key is present in environment, attempt live LLM structured extraction
-  // Public demo never calls out to OpenAI; it uses the deterministic parser
-  const apiKey = isPublicDemo() ? undefined : process.env.OPENAI_API_KEY;
-  if (apiKey && apiKey.startsWith("sk-")) {
+  // 2. AI extraction when a provider key is set (never in the public demo)
+  let notice: string | undefined;
+  const llm = resolveLlmConfig();
+  if (llm && "error" in llm) {
+    notice = `AI extraction failed: ${llm.error}. Used the basic parser.`;
+  } else if (llm) {
     try {
-      const response = await fetch(
-        "https://api.openai.com/v1/chat/completions",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({
-            model: "gpt-4o-mini",
-            response_format: { type: "json_object" },
-            messages: [
-              {
-                role: "system",
-                content: `You are the Premise Compiler. Extract load-bearing quantitative premises from architectural and strategic decision documents. Return strict JSON matching:
-{
-  "title": string,
-  "type": "ADR" | "GITHUB_PR" | "STRATEGY_MEMO" | "VENDOR_CONTRACT",
-  "targetLocus": string,
-  "blastRadius": string,
-  "premises": [{
-    "claim": string (exact substring from document if possible),
-    "variableName": string (snake_case),
-    "unit": string,
-    "operator": "LT" | "LTE" | "GT" | "GTE" | "EQ" | "NEQ",
-    "thresholdValue": string,
-    "currentValue": string,
-    "decayWarningMargin": number (0.05 to 0.20),
-    "recommendedProbe": {
-      "probeType": "HTTP_JSON_PATH" | "WEB_SCRAPE_EXTRACT" | "WEBHOOK_INGEST" | "SQL_METRIC",
-      "targetUrlOrQuery": string,
-      "jsonPath": string,
-      "pollingIntervalSeconds": number
-    }
-  }]
-}`,
-              },
-              {
-                role: "user",
-                content: rawContent,
-              },
-            ],
-          }),
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        const content = data.choices?.[0]?.message?.content;
-        if (content) {
-          const parsedJson = JSON.parse(content);
-          const validated = CompiledArtifactOutputSchema.parse(parsedJson);
-          return {
-            compiled: validated,
-            compilerEngine: "llm-structured-zod",
-          };
-        }
+      const extracted =
+        llm.provider === "anthropic"
+          ? await extractWithAnthropic(rawContent, llm.apiKey, llm.model)
+          : await extractWithOpenAi(rawContent, llm.apiKey, llm.model);
+      if (!Array.isArray(extracted.premises) || extracted.premises.length === 0) {
+        throw new Error("the model found no measurable premise");
       }
-    } catch {
-      // Fallback to deterministic parser
+      const validated = CompiledArtifactOutputSchema.parse(
+        fromLlmExtraction(extracted, { overrideType, overrideTitle, overrideLocus })
+      );
+      return {
+        compiled: asSuggestionsOnly(validated),
+        compilerEngine: "llm-structured-zod",
+        llmProvider: llm.provider,
+        llmModel: llm.model,
+      };
+    } catch (err) {
+      notice = `AI extraction failed: ${describeError(err)}. Used the basic parser.`;
     }
   }
 
@@ -121,11 +100,289 @@ export async function compileDecisionArtifact(input: {
     overrideTitle,
     overrideLocus,
   });
+  if (deterministicResult.premises.length === 0) {
+    throw new Error(
+      `${notice ? `${notice} ` : ""}No measurable premise found. Add a sentence with a number and a comparison, for example: "This holds while p95 latency stays under 300ms."`
+    );
+  }
 
   const validated = CompiledArtifactOutputSchema.parse(deterministicResult);
   return {
-    compiled: validated,
+    compiled: asSuggestionsOnly(validated),
     compilerEngine: "deterministic-ast-parser",
+    ...(notice ? { notice } : {}),
+  };
+}
+
+/** Clears any value and turns every probe into an unconnected suggestion. */
+function asSuggestionsOnly(compiled: CompiledArtifactOutput): CompiledArtifactOutput {
+  return {
+    ...compiled,
+    premises: compiled.premises.map((p) => ({
+      ...p,
+      currentValue: "",
+      recommendedProbe: {
+        ...p.recommendedProbe,
+        // The app's own demo feed is not a real source
+        targetUrlOrQuery: p.recommendedProbe.targetUrlOrQuery.startsWith("/api/telemetry/live")
+          ? ""
+          : p.recommendedProbe.targetUrlOrQuery,
+        valueMultiplier: p.recommendedProbe.valueMultiplier ?? 1,
+        status: "UNBOUND",
+      },
+    })),
+  };
+}
+
+function describeError(err: unknown): string {
+  let message: string;
+  if (err instanceof Anthropic.APIError) {
+    const cause = (err as { cause?: unknown }).cause;
+    message = err.status
+      ? `Anthropic returned HTTP ${err.status}: ${err.message}`
+      : `${err.message.replace(/\.$/, "")}${cause instanceof Error ? ` (${cause.message})` : ""}`;
+  } else {
+    message = err instanceof Error ? err.message : String(err);
+  }
+  return message.replace(/[.\s]+$/, "");
+}
+
+type LlmConfig =
+  | { provider: LlmProvider; apiKey: string; model: string }
+  | { error: string };
+
+/**
+ * PREMISE_LLM_PROVIDER picks anthropic or openai. When unset, the first key
+ * found wins: ANTHROPIC_API_KEY, then OPENAI_API_KEY. PREMISE_LLM_MODEL
+ * overrides the model.
+ */
+export function resolveLlmConfig(): LlmConfig | null {
+  if (isPublicDemo()) return null;
+  const requested = process.env.PREMISE_LLM_PROVIDER?.trim().toLowerCase();
+  const anthropicKey = process.env.ANTHROPIC_API_KEY?.trim();
+  const openAiKey = process.env.OPENAI_API_KEY?.trim();
+  const modelOverride = process.env.PREMISE_LLM_MODEL?.trim();
+
+  let provider: LlmProvider | null = null;
+  if (requested) {
+    if (requested !== "anthropic" && requested !== "openai") {
+      return { error: `PREMISE_LLM_PROVIDER must be "anthropic" or "openai" (got "${requested}")` };
+    }
+    provider = requested;
+  } else if (anthropicKey) {
+    provider = "anthropic";
+  } else if (openAiKey) {
+    provider = "openai";
+  }
+  if (!provider) return null;
+
+  const apiKey = provider === "anthropic" ? anthropicKey : openAiKey;
+  if (!apiKey) {
+    return {
+      error: `PREMISE_LLM_PROVIDER is ${provider} but ${provider === "anthropic" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY"} is not set`,
+    };
+  }
+  return {
+    provider,
+    apiKey,
+    model:
+      modelOverride ||
+      (provider === "anthropic" ? DEFAULT_ANTHROPIC_MODEL : DEFAULT_OPENAI_MODEL),
+  };
+}
+
+const EXTRACTION_INSTRUCTIONS = `You are the Premise Compiler. Read an architecture or strategy decision document and extract its load-bearing quantitative premises: the measurable conditions under which the decision stays correct.
+
+Rules:
+- Only extract conditions the document states. Never invent numbers.
+- operator is the comparison that must hold for the decision to stay correct (e.g. "only while cost is above $2" -> GT 2).
+- thresholdValue is the number from the document, without currency symbols or thousands separators.
+- variableName is short snake_case naming the measured thing, e.g. rds_monthly_cost_usd.
+- targetLocus is the code path the document names, or "" if it names none. Never guess a path.
+- blastRadius is what the document says can be removed if a premise breaks, or "" if it says nothing.
+- decayWarningMargin is 0.1 unless the document suggests otherwise.`;
+
+interface LlmExtraction {
+  title: string;
+  type: string;
+  targetLocus: string;
+  blastRadius: string;
+  logicCombinator: string;
+  premises: Array<{
+    claim: string;
+    variableName: string;
+    unit: string;
+    operator: string;
+    thresholdValue: string;
+    decayWarningMargin: number;
+    probeType: string;
+  }>;
+}
+
+// Strict-mode friendly: every object closed, every property required
+const EXTRACTION_JSON_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["title", "type", "targetLocus", "blastRadius", "logicCombinator", "premises"],
+  properties: {
+    title: { type: "string" },
+    type: { type: "string", enum: [...ArtifactTypeEnum.options] },
+    targetLocus: { type: "string" },
+    blastRadius: { type: "string" },
+    logicCombinator: { type: "string", enum: [...LogicCombinatorEnum.options] },
+    premises: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "claim",
+          "variableName",
+          "unit",
+          "operator",
+          "thresholdValue",
+          "decayWarningMargin",
+          "probeType",
+        ],
+        properties: {
+          claim: { type: "string" },
+          variableName: { type: "string" },
+          unit: { type: "string" },
+          operator: { type: "string", enum: [...OperatorEnum.options] },
+          thresholdValue: { type: "string" },
+          decayWarningMargin: { type: "number" },
+          probeType: { type: "string", enum: [...ProbeTypeEnum.options] },
+        },
+      },
+    },
+  },
+} as const;
+
+// Docs: https://platform.claude.com/docs/en/build-with-claude/structured-outputs
+async function extractWithAnthropic(
+  rawContent: string,
+  apiKey: string,
+  model: string
+): Promise<LlmExtraction> {
+  const client = new Anthropic({ apiKey, timeout: 60_000, maxRetries: 1 });
+  const response = await client.messages.create({
+    model,
+    max_tokens: 16000,
+    system: EXTRACTION_INSTRUCTIONS,
+    messages: [{ role: "user", content: rawContent }],
+    output_config: {
+      effort: "low",
+      format: { type: "json_schema", schema: EXTRACTION_JSON_SCHEMA },
+    },
+  });
+  if (response.stop_reason === "refusal") {
+    throw new Error("the model declined the request");
+  }
+  if (response.stop_reason === "max_tokens") {
+    throw new Error("the model's answer was cut off (max_tokens)");
+  }
+  const text = response.content
+    .map((block) => (block.type === "text" ? block.text : ""))
+    .join("");
+  if (!text) throw new Error("the model returned no text");
+  return JSON.parse(text) as LlmExtraction;
+}
+
+// Docs: https://developers.openai.com/api/docs/guides/structured-outputs
+async function extractWithOpenAi(
+  rawContent: string,
+  apiKey: string,
+  model: string
+): Promise<LlmExtraction> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 60_000);
+  try {
+    const res = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        reasoning: { effort: "low" },
+        input: [
+          { role: "system", content: EXTRACTION_INSTRUCTIONS },
+          { role: "user", content: rawContent },
+        ],
+        text: {
+          format: {
+            type: "json_schema",
+            name: "premise_extraction",
+            strict: true,
+            schema: EXTRACTION_JSON_SCHEMA,
+          },
+        },
+      }),
+    });
+    const data = (await res.json().catch(() => null)) as {
+      status?: string;
+      error?: { message?: string } | null;
+      incomplete_details?: { reason?: string } | null;
+      output?: Array<{
+        type: string;
+        content?: Array<{ type: string; text?: string; refusal?: string }>;
+      }>;
+    } | null;
+    if (!res.ok) {
+      throw new Error(`OpenAI returned HTTP ${res.status}${data?.error?.message ? `: ${data.error.message}` : ""}`);
+    }
+    if (data?.status === "incomplete") {
+      throw new Error(`OpenAI answer incomplete (${data.incomplete_details?.reason ?? "unknown reason"})`);
+    }
+    const content = (data?.output ?? [])
+      .filter((item) => item.type === "message")
+      .flatMap((item) => item.content ?? []);
+    const refusal = content.find((c) => c.type === "refusal");
+    if (refusal) throw new Error(`the model declined: ${refusal.refusal ?? ""}`.trim());
+    const text = content
+      .filter((c) => c.type === "output_text")
+      .map((c) => c.text ?? "")
+      .join("");
+    if (!text) throw new Error("OpenAI returned no text");
+    return JSON.parse(text) as LlmExtraction;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function fromLlmExtraction(
+  extracted: LlmExtraction,
+  overrides: { overrideType?: ArtifactType; overrideTitle?: string; overrideLocus?: string }
+): unknown {
+  return {
+    title: overrides.overrideTitle?.trim() || extracted.title,
+    type: overrides.overrideType || extracted.type,
+    targetLocus: overrides.overrideLocus?.trim() || extracted.targetLocus || "",
+    blastRadius:
+      extracted.blastRadius ||
+      (extracted.targetLocus
+        ? `The document does not say what to remove. Code location: ${extracted.targetLocus}.`
+        : "The document does not say what to remove. No code location set."),
+    logicCombinator: extracted.logicCombinator,
+    premises: extracted.premises.map((p) => ({
+      claim: p.claim,
+      variableName: p.variableName,
+      unit: p.unit,
+      operator: p.operator,
+      thresholdValue: String(p.thresholdValue).replace(/[$,\s]/g, ""),
+      currentValue: "",
+      decayWarningMargin: Math.min(0.5, Math.max(0.001, Number(p.decayWarningMargin) || 0.1)),
+      recommendedProbe: {
+        probeType: p.probeType,
+        targetUrlOrQuery: "",
+        jsonPath: "$.value",
+        pollingIntervalSeconds: 300,
+        valueMultiplier: 1,
+        status: "UNBOUND",
+      },
+    })),
   };
 }
 
@@ -180,14 +437,9 @@ function parseDocumentDeterministically(
       rawContent.match(
         /`((?:src|packages|services|infra|ops|apps|lib)\/[a-zA-Z0-9_./:-]+)`/
       );
+    // No code location named in the document: leave it empty, never invent a path
     if (locusMatch?.[1]) {
       targetLocus = locusMatch[1];
-    } else if (type === "STRATEGY_MEMO") {
-      targetLocus = "ops/growth/channel-allocation-budget";
-    } else if (type === "VENDOR_CONTRACT") {
-      targetLocus = "ops/finops/vendor-commit-registry";
-    } else {
-      targetLocus = "services/core-gateway/src/workaround-layer.ts";
     }
   }
 
@@ -212,7 +464,9 @@ function parseDocumentDeterministically(
       );
     blastRadius =
       keywordSentence?.trim() ||
-      `Custom infrastructure and operational process at ${targetLocus} becomes obsolete and eligible for immediate removal.`;
+      (targetLocus
+        ? `The document does not say what to remove. Code location: ${targetLocus}.`
+        : "The document does not say what to remove. No code location set.");
   }
 
   // 5. Extract Quantitative Premises
@@ -260,7 +514,7 @@ function extractQuantitativePremises(rawContent: string): CompiledPremise[] {
     if (
       /\b(?:and|while)\b/i.test(cleanedBullet) &&
       (cleanedBullet.match(
-        /(?:>=|<=|>|<|\bunder\b|\bover\b|\bexceeds\b|\bbelow\b|\babove\b|\bcosts\b|\btakes\b)/gi
+        /(?:>=|<=|>|<|\bunder\b|\bover\b|\bexceeds\b|\bbelow\b|\babove\b|\bmore\s+than\b|\bless\s+than\b|\bfewer\s+than\b|\bcosts\b|\btakes\b)/gi
       )?.length ?? 0) >= 2
     ) {
       const subParts = cleanedBullet.split(/\s+and\s+/i);
@@ -280,7 +534,7 @@ function extractQuantitativePremises(rawContent: string): CompiledPremise[] {
   }
 
   const comparisonRegex =
-    /^(?<subject>[^<>=\n]+?)\s*(?<op>>=|<=|!=|==|>|<|\b(?:stays\s+under|remains\s+under|under|below|less\s+than|at\s+most|exceeds|over|above|greater\s+than|at\s+least|takes\s*>|takes\s*<|costs\s*>|costs\s*<|costs|is)\b)\s*(?<currency>\$)?(?<num>\d+(?:,\d{3})*(?:\.\d+)?)\s*(?<unit>%\s*|ms\b|s\b|KB\b|MB\b|GB\b|TB\s*\/\s*month\b|TB\b|\/\s*1M\s*tokens\b|per\s*1M\s*tokens\b|\/\s*minute\b|\/\s*min\b|\/\s*GB\b|USD\b|req\/s\b)?/i;
+    /^(?<subject>[^<>=\n]+?)\s*(?<op>>=|<=|!=|==|>|<|\b(?:stays?\s+(?:under|below|above|over)|remains?\s+(?:under|below|above|over)|under|below|less\s+than|fewer\s+than|at\s+most|exceeds|over|above|greater\s+than|more\s+than|at\s+least|takes\s*>|takes\s*<|costs\s*>|costs\s*<|costs|is)\b)\s*(?<currency>\$)?(?<num>\d+(?:,\d{3})*(?:\.\d+)?)\s*(?<unit>%\s*|ms\b|s\b|KB\b|MB\b|GB\b|TB\s*\/\s*month\b|TB\b|\/\s*1M\s*tokens\b|per\s*1M\s*tokens\b|(?:\/|per)\s*month\b|(?:\/|per)\s*mo\b|(?:\/|per)\s*day\b|(?:\/|per)\s*week\b|\/\s*minute\b|\/\s*min\b|\/\s*GB\b|USD\b|req\/s\b)?/i;
 
   for (const clause of rawClauses) {
     const match = clause.match(comparisonRegex);
@@ -302,6 +556,7 @@ function extractQuantitativePremises(rawContent: string): CompiledPremise[] {
       rawOp.includes("under") ||
       rawOp.includes("below") ||
       rawOp.includes("less than") ||
+      rawOp.includes("fewer than") ||
       rawOp.includes("takes <") ||
       rawOp.includes("costs <")
     ) {
@@ -316,6 +571,7 @@ function extractQuantitativePremises(rawContent: string): CompiledPremise[] {
       rawOp.includes("over") ||
       rawOp.includes("above") ||
       rawOp.includes("greater than") ||
+      rawOp.includes("more than") ||
       rawOp.includes("takes >") ||
       rawOp.includes("costs >") ||
       rawOp === "costs"
@@ -327,8 +583,10 @@ function extractQuantitativePremises(rawContent: string): CompiledPremise[] {
       operator = "GT";
     }
 
-    // Determine Unit
-    let unit = rawUnit;
+    // Determine Unit ("per month" and "/mo" both become "/ month")
+    let unit = rawUnit
+      .replace(/^(?:\/|per)\s*mo(?:nth)?$/i, "/ month")
+      .replace(/^(?:\/|per)\s*(day|week)$/i, "/ $1");
     if (hasDollar && (!unit || /^\/\s*1M\s*tokens$/i.test(unit) || /^per\s*1M\s*tokens$/i.test(unit))) {
       unit = unit ? `USD ${unit.replace(/^per\s*/i, "/ ")}` : "USD";
     } else if (hasDollar && unit) {
@@ -344,18 +602,6 @@ function extractQuantitativePremises(rawContent: string): CompiledPremise[] {
     if (seenVariables.has(variableName)) continue;
     seenVariables.add(variableName);
 
-    // Compute a realistic baseline currentValue that satisfies the threshold
-    let currentNum = thresholdNum;
-    if (operator === "GT" || operator === "GTE") {
-      currentNum = Number((thresholdNum * 1.18).toFixed(4));
-    } else if (operator === "LT" || operator === "LTE") {
-      if (unit === "%" && thresholdNum >= 95) {
-        currentNum = Number((thresholdNum - 0.45).toFixed(2));
-      } else {
-        currentNum = Number((thresholdNum * 0.84).toFixed(4));
-      }
-    }
-
     // Choose Recommended Probe
     const recommendedProbe = buildRecommendedProbe(variableName, unit);
 
@@ -368,28 +614,10 @@ function extractQuantitativePremises(rawContent: string): CompiledPremise[] {
       unit,
       operator,
       thresholdValue: String(thresholdNum),
-      currentValue: String(currentNum),
+      // No value until a probe really reports one
+      currentValue: "",
       decayWarningMargin: unit === "%" && thresholdNum >= 95 ? 0.003 : 0.1,
       recommendedProbe,
-    });
-  }
-
-  // Fallback if document had no explicit regex matches
-  if (results.length === 0) {
-    results.push({
-      claim: "Primary system operational threshold holds within design bounds",
-      variableName: "primary_system_metric_value",
-      unit: "ms",
-      operator: "GT",
-      thresholdValue: "500",
-      currentValue: "620",
-      decayWarningMargin: 0.1,
-      recommendedProbe: {
-        probeType: "HTTP_JSON_PATH",
-        targetUrlOrQuery: "/api/telemetry/live?source=synthetic-probe",
-        jsonPath: "$.metrics.primary_system_metric_value",
-        pollingIntervalSeconds: 60,
-      },
     });
   }
 
@@ -397,32 +625,32 @@ function extractQuantitativePremises(rawContent: string): CompiledPremise[] {
 }
 
 function deriveVariableName(subject: string, unit: string): string {
-  const cleaned = subject
+  let phrase = subject
+    .replace(/(\w)-(\w)/g, "$1$2") // on-call -> oncall
     .replace(/^we\s+maintain.*because\s+/i, "")
-    .replace(/^.*viable\s+as\s+long\s+as\s+/i, "")
+    .replace(/^.*viable\s+as\s+long\s+as\s+/i, "");
+
+  // Keep only the clause that holds the measured thing
+  const clauseSplit = phrase.split(
+    /\b(?:because|while|as\s+long\s+as|so\s+long\s+as|provided\s+that|only\s+if|if|when|unless)\b/i
+  );
+  phrase = clauseSplit[clauseSplit.length - 1] || phrase;
+
+  // "pages for the DB" -> "DB pages"
+  const forMatch = phrase.match(/^(.*?)\s+for\s+(?:the\s+|our\s+)?(.+)$/i);
+  if (forMatch) phrase = `${forMatch[2]} ${forMatch[1]}`;
+
+  const cleaned = phrase
     .replace(/[^a-zA-Z0-9\s]/g, " ")
     .trim()
     .toLowerCase();
 
   const stopWords = new Set([
-    "the",
-    "a",
-    "an",
-    "of",
-    "for",
-    "in",
-    "on",
-    "to",
-    " across",
-    "our",
-    "while",
-    "because",
-    "that",
-    "is",
-    "stays",
-    "remains",
-    "takes",
-    "costs",
+    "the", "a", "an", "of", "for", "in", "on", "to", "across", "our", "we", "us",
+    "it", "its", "this", "that", "these", "those", "while", "because", "is", "are",
+    "be", "was", "were", "would", "will", "should", "could", "can", "may", "must",
+    "stays", "stay", "remains", "remain", "takes", "costs", "keeps", "keep", "at",
+    "size", "only", "makes", "sense",
   ]);
 
   const tokens = cleaned
@@ -431,8 +659,26 @@ function deriveVariableName(subject: string, unit: string): string {
     .slice(-4);
 
   let base = tokens.join("_") || "monitored_metric";
-  if (unit.includes("USD") && !base.includes("usd") && !base.includes("cost") && !base.includes("cac")) {
-    base += "_usd";
+  const isUsd = unit.includes("USD");
+  const perMatch = unit.match(/\/\s*(month|day|week)\b/i);
+  const sizeUnit = unit.match(/^(KB|MB|GB|TB)$/i)?.[1]?.toLowerCase();
+
+  if (isUsd && perMatch) {
+    // Money per period: rds_cost -> rds_monthly_cost
+    const period = { month: "monthly", day: "daily", week: "weekly" }[
+      perMatch[1].toLowerCase() as "month" | "day" | "week"
+    ];
+    base = /(^|_)cost(_|$)/.test(base)
+      ? base.replace(/(^|_)cost(_|$)/, `$1${period}_cost$2`)
+      : `${base}_${period}_cost`;
+  }
+  if (isUsd) {
+    if (!base.includes("usd") && !base.includes("cac")) base += "_usd";
+  } else if (perMatch) {
+    base += `_per_${perMatch[1].toLowerCase()}`;
+  } else if (sizeUnit) {
+    if (!/size|volume|storage|memory|disk/.test(base)) base += "_size";
+    base += `_${sizeUnit}`;
   } else if (unit === "ms" && !base.includes("ms") && !base.includes("latency")) {
     base += "_ms";
   } else if (unit === "%" && !base.includes("pct") && !base.includes("rate")) {
@@ -441,36 +687,33 @@ function deriveVariableName(subject: string, unit: string): string {
   return base;
 }
 
+/**
+ * Suggests a probe type only. It has no source and stays UNBOUND
+ * ("suggested, not connected") until a person sets a real one.
+ */
 function buildRecommendedProbe(
   variableName: string,
   unit: string
 ): CompiledPremise["recommendedProbe"] {
   let probeType: ProbeType = "HTTP_JSON_PATH";
-  let source = "telemetry-synthetics";
   let pollingIntervalSeconds = 60;
 
   if (/cac|conversion|payback|cohort|churn|revenue/i.test(variableName)) {
     probeType = "WEBHOOK_INGEST";
-    source = `revops-metric-stream (var: ${variableName})`;
     pollingIntervalSeconds = 600;
   } else if (/volume|tb|gb|scan|warehouse/i.test(variableName)) {
     probeType = "SQL_METRIC";
-    source = `SELECT ${variableName} FROM finops_hourly_rollup ORDER BY ts DESC LIMIT 1`;
     pollingIntervalSeconds = 1800;
   } else if (unit.includes("USD") || /cost|price|fee/i.test(variableName)) {
-    probeType = "HTTP_JSON_PATH";
-    source = `/api/telemetry/live?source=vendor-pricing-oracle&metric=${variableName}`;
     pollingIntervalSeconds = 300;
-  } else {
-    probeType = "HTTP_JSON_PATH";
-    source = `/api/telemetry/live?source=datadog-synthetics&metric=${variableName}`;
-    pollingIntervalSeconds = 60;
   }
 
   return {
     probeType,
-    targetUrlOrQuery: source,
-    jsonPath: `$.metrics.${variableName}`,
+    targetUrlOrQuery: "",
+    jsonPath: "$.value",
     pollingIntervalSeconds,
+    valueMultiplier: 1,
+    status: "UNBOUND",
   };
 }

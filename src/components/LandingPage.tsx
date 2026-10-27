@@ -49,21 +49,22 @@ export function LandingPage() {
   const pillars = [
     {
       id: "probes",
-      title: "Live Telemetry Probes",
-      tag: "Prometheus • Thanos • Datadog v2 • SQL",
+      title: "Telemetry Probes",
+      tag: "1 live public feed • Prometheus • Datadog v2 • SQL",
       icon: Activity,
       color: "emerald",
       headline: "Static ADRs lie. Telemetry tells the truth.",
       description:
-        "Bind natural language architecture claims directly to live PromQL queries, Datadog metrics, or SQL telemetry. When unit economics shift or latency boundaries drift, Premise detects it immediately.",
-      metric: "Sub-second evaluation",
-      metricLabel: "Autonomous evaluation frequency",
-      codeSnippet: `// PromQL Probe bound to ADR-014
+        "Bind architecture claims to probes. In the demo one premise is live: ADR-014 reads the real Claude Sonnet 5.5 input price from OpenRouter's public models list. The rest show demo data until you connect your own sources: a Prometheus or Datadog connector, SQL on Premise's own database, or any JSON URL.",
+      metric: "1 live premise",
+      metricLabel: "Real outside data in the demo",
+      codeSnippet: `// HTTP probe bound to ADR-014 (live in the demo)
 probe:
-  type: PROMQL
-  query: avg_over_time(llm_gateway_input_token_cost[5m])
-  threshold: "< 0.0020"
-  status: BREACHED (-28% drift)`,
+  type: HTTP_JSON_PATH
+  url: https://openrouter.ai/api/v1/models
+  path: $.data[?(@.id=="anthropic/claude-sonnet-5.5")].pricing.prompt
+  multiplier: 1000000  # USD per token -> per 1M tokens
+  assert: "> 2.00"`,
     },
     {
       id: "cascades",
@@ -73,8 +74,8 @@ probe:
       color: "amber",
       headline: "Decisions don't live in isolation. Track the dominoes.",
       description:
-        "When an upstream architectural assumption collapses, Premise propagates the breach downstream through dependency graphs. Catch impacted vendor contracts, consumer microservices, and client SDKs before they cause outages.",
-      metric: "100% blast radius visibility",
+        "When an upstream architectural assumption collapses, Premise propagates the breach to every decision you declared as depending on it, such as vendor contracts and the services that call the old code.",
+      metric: "Declared dependencies",
       metricLabel: "Transitive dependency mapping",
       codeSnippet: `// Upstream failure cascade
 ADR-014 (Semantic Cache) -> [BREACHED]
@@ -83,15 +84,15 @@ ADR-014 (Semantic Cache) -> [BREACHED]
     },
     {
       id: "pr-bot",
-      title: "Autonomous Teardown PRs",
-      tag: "Zero-Touch GitHub Bot",
+      title: "Teardown PR Drafts",
+      tag: "GitHub PRs when a token is set",
       icon: GitBranch,
       color: "cyan",
       headline: "Automated garbage collection for dead code.",
       description:
-        "Premise doesn't just send Slack noise. It cuts a git branch, generates git-apply ready unified diffs, inspects exact workspace loci, and submits a GitHub PR complete with Architecture Council signoff checklists.",
-      metric: "Zero-touch PR workflow",
-      metricLabel: "Automated diff generation",
+        "Premise drafts a teardown branch, a git-apply ready diff for the named code location and a PR body with a review checklist. With a GitHub token it opens the PR through the GitHub API. Without one it is a dry run: you get the body and the gh command, and nothing is sent.",
+      metric: "Dry run by default",
+      metricLabel: "Opens PRs only with a token",
       codeSnippet: `Branch: premise/teardown-adr-014
 Commit: chore(teardown): decommission ADR-014
 Diff:
@@ -107,30 +108,30 @@ Diff:
       color: "purple",
       headline: "Quantify the dollar cost of architectural inertia.",
       description:
-        "Every outdated architecture choice costs real money. Premise aggregates cloud infrastructure spend and blended engineering maintenance hours into an executive balance sheet so technical debt gets prioritized with finance.",
-      metric: "$31,200 / year",
-      metricLabel: "Avg zombie infrastructure savings",
-      codeSnippet: `FinOps Drag Ledger:
+        "Every outdated architecture choice costs real money. Premise adds up the monthly cloud spend and maintenance hours you record for each decision into a balance sheet, so technical debt gets prioritized with finance.",
+      metric: "Your numbers",
+      metricLabel: "Computed from the spend you enter",
+      codeSnippet: `FinOps Drag Ledger (demo data):
 • ADR-014 (Redis Commit):   $1,183/mo cloud spend
 • PR #892 (Manual Ingest):    $520/mo engineering drag
 Total Realized Annual Savings: $31,200/yr`,
     },
     {
       id: "synthesizer",
-      title: "Autonomous Sunset Synthesizer",
+      title: "Sunset Synthesizer",
       tag: "Replacement ADR Generation",
       icon: Zap,
       color: "rose",
       headline: "Don't just delete old systems. Formulate the replacement.",
       description:
-        "When an ADR breaches, Premise automatically drafts its replacement decision (e.g., transitioning from Redis Semantic Caching to Native Frontier Prompt Caching), complete with new telemetry probes and sunset milestones.",
-      metric: "Instant ADR-015 Synthesis",
+        "When an ADR breaches, Premise drafts a replacement decision from built-in templates (for example, moving from Redis semantic caching to native prompt caching), with suggested probes you connect and sunset milestones.",
+      metric: "Template-based draft",
       metricLabel: "Replacement formulation",
       codeSnippet: `Synthesized Replacement ADR:
 ID: ADR-015
 Title: Direct Frontier Streaming + Prompt Caching
 Status: PROMOTED (Replaces ADR-014)
-Annual Savings: $31,200/yr`,
+Probes: suggested, not connected`,
     },
     {
       id: "time-machine",
@@ -140,9 +141,9 @@ Annual Savings: $31,200/yr`,
       color: "blue",
       headline: "Stress-test architecture against historical black swans.",
       description:
-        "Replay 90-day market price wars, cloud vendor outages, and latency spikes across your portfolio. Premise computes quantitative resilience scores (0-100) and recommends safe threshold buffers before you ship to production.",
-      metric: "94.2 Resilience Score",
-      metricLabel: "Portfolio shock tolerance",
+        "Replay simulated price wars, vendor outages and latency spikes, or the history Premise has stored, across your portfolio. Premise computes resilience scores (0-100) and suggests safer threshold buffers. Scenarios are simulations, not forecasts.",
+      metric: "0-100 score",
+      metricLabel: "From simulated scenarios",
       codeSnippet: `Scenario Replay: "LLM Price War (-60% step cut)"
 Trajectory: 90 steps evaluated
 Breach Point: Day 42 (Upstream cost collapsed)
@@ -240,9 +241,9 @@ Optimal Threshold Adjustment: +14% safety buffer`,
         {/* Eyebrow Badge */}
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-900/90 border border-zinc-700/80 text-xs font-mono text-zinc-300 mb-8 shadow-sm">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-zinc-400">Automated Garbage Collection:</span>
+          <span className="text-zinc-400">Live in the demo:</span>
           <span className="text-cyan-400 font-semibold">
-            Horizon E Autonomous Sunset Synthesizer Active
+            ADR-014 watches the real OpenRouter price
           </span>
           <ChevronRight className="w-3.5 h-3.5 text-zinc-500" />
         </div>
@@ -262,8 +263,8 @@ Optimal Threshold Adjustment: +14% safety buffer`,
         {/* Subtitle */}
         <p className="mt-6 text-base sm:text-lg text-zinc-400 max-w-3xl mx-auto leading-relaxed">
           Stop paying for dead architecture. Premise turns ADRs, strategy memos, and vendor
-          contracts into executable telemetry assertions—and autonomously opens teardown PRs the
-          moment load-bearing assumptions break.
+          contracts into executable assertions, and drafts teardown PRs when load-bearing
+          assumptions break. PRs open on GitHub only when you add a token.
         </p>
 
         {/* Action Buttons */}
@@ -297,20 +298,20 @@ Optimal Threshold Adjustment: +14% safety buffer`,
         {/* Social Proof / Stats Strip */}
         <div className="mt-14 pt-8 border-t border-zinc-800/80 grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto text-left">
           <div className="p-3 bg-zinc-900/40 rounded border border-zinc-800/60">
-            <div className="text-2xl font-bold font-mono text-emerald-400">64 / 64</div>
-            <div className="text-xs font-mono text-zinc-400">Automated Tests Passing</div>
+            <div className="text-2xl font-bold font-mono text-emerald-400">1 Live Feed</div>
+            <div className="text-xs font-mono text-zinc-400">Real OpenRouter price in the demo</div>
           </div>
           <div className="p-3 bg-zinc-900/40 rounded border border-zinc-800/60">
             <div className="text-2xl font-bold font-mono text-cyan-400">4 Connectors</div>
             <div className="text-xs font-mono text-zinc-400">Prometheus, Datadog, Slack, PagerDuty</div>
           </div>
           <div className="p-3 bg-zinc-900/40 rounded border border-zinc-800/60">
-            <div className="text-2xl font-bold font-mono text-amber-400">$31,200/yr</div>
-            <div className="text-xs font-mono text-zinc-400">Average FinOps Drag Saved</div>
+            <div className="text-2xl font-bold font-mono text-amber-400">Your Spend</div>
+            <div className="text-xs font-mono text-zinc-400">FinOps ledger from numbers you enter</div>
           </div>
           <div className="p-3 bg-zinc-900/40 rounded border border-zinc-800/60">
-            <div className="text-2xl font-bold font-mono text-purple-400">0-Touch</div>
-            <div className="text-xs font-mono text-zinc-400">Autonomous Teardown PR Bot</div>
+            <div className="text-2xl font-bold font-mono text-purple-400">Dry Run First</div>
+            <div className="text-xs font-mono text-zinc-400">Teardown PRs open only with a token</div>
           </div>
         </div>
       </section>
@@ -319,7 +320,7 @@ Optimal Threshold Adjustment: +14% safety buffer`,
       <section id="simulator" className="relative z-10 py-16 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
         <div className="text-center mb-8">
           <span className="text-xs font-mono uppercase tracking-widest text-cyan-400">
-            Interactive Live Sandbox
+            Interactive Sandbox (simulated values)
           </span>
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-100 mt-2">
             Simulate an Upstream Price Breach in Real Time
@@ -374,7 +375,7 @@ Optimal Threshold Adjustment: +14% safety buffer`,
               <div className="flex justify-between items-center mb-2">
                 <label className="text-xs font-mono uppercase tracking-wider text-zinc-300 flex items-center gap-2">
                   <Activity className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Upstream Frontier LLM Input Cost (Telemetry Probe)</span>
+                  <span>Upstream Frontier LLM Input Cost (simulated)</span>
                 </label>
                 <span className="font-mono text-sm font-bold text-zinc-100">
                   ${llmCost.toFixed(4)} / 1k tokens
@@ -518,8 +519,9 @@ Optimal Threshold Adjustment: +14% safety buffer`,
             The Complete Lifecycle of Architectural Decisions
           </h2>
           <p className="mt-3 text-sm sm:text-base text-zinc-400">
-            From natural language ingestion to automated code removal, Premise replaces forgotten
-            markdown logs with live telemetry assertions.
+            From natural language ingestion to drafted code removal, Premise replaces forgotten
+            markdown logs with checked assertions. One demo premise is live; the rest use demo data
+            until you connect your own sources.
           </p>
         </div>
 
@@ -647,8 +649,9 @@ Optimal Threshold Adjustment: +14% safety buffer`,
               <li className="flex items-start gap-2">
                 <span className="text-emerald-400 font-bold shrink-0">✓</span>
                 <span>
-                  <strong>Continuous telemetry assertions:</strong> Natural language compiled into live
-                  PromQL, Datadog v2, and SQL probes.
+                  <strong>Telemetry assertions:</strong> Natural language compiled into assertions
+                  with suggested probes you connect to a real Prometheus server or Datadog, SQL, any
+                  JSON URL, or a PromQL subset that runs on Premise&apos;s own stored samples.
                 </span>
               </li>
               <li className="flex items-start gap-2">
@@ -668,8 +671,8 @@ Optimal Threshold Adjustment: +14% safety buffer`,
               <li className="flex items-start gap-2">
                 <span className="text-emerald-400 font-bold shrink-0">✓</span>
                 <span>
-                  <strong>Autonomous GitHub PR Bot:</strong> Opens clean teardown branches with
-                  git-apply unified diffs and replacement ADRs.
+                  <strong>GitHub PR Bot:</strong> Drafts teardown branches with git-apply unified
+                  diffs and replacement ADRs, and opens the PR only when a GitHub token is set.
                 </span>
               </li>
             </ul>
@@ -749,8 +752,8 @@ Optimal Threshold Adjustment: +14% safety buffer`,
             Stop Paying for Zombie Architecture.
           </h2>
           <p className="mt-4 text-base sm:text-lg text-zinc-300 max-w-2xl mx-auto">
-            Experience the interactive control plane, run real PromQL/Datadog probes, and watch
-            autonomous teardown PR generation in action.
+            Explore the control plane, watch a live probe read the real OpenRouter price, and see
+            teardown PRs drafted as dry runs.
           </p>
 
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">

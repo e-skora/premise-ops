@@ -43,13 +43,13 @@ export const HEAVY_DEPENDENCY_CATALOG: Record<string, PackageKnowledge> = {
     variableName: "upstream_llm_input_cost_usd",
     operator: "GT",
     thresholdValue: "2.00",
-    currentValue: "3.00",
+    currentValue: "",
     unit: "USD / 1M tokens",
     decayWarningMargin: 0.15,
     blastRadius:
       "Decommission Redis vector cluster & committed-use FinOps contract if upstream tokens drop <= $2.00 / 1M tokens.",
     probeType: "HTTP_JSON_PATH",
-    targetUrlOrQuery: "/api/telemetry/live?source=llm-pricing-index",
+    targetUrlOrQuery: "",
     jsonPath: "$.metrics.upstream_llm_input_cost_usd",
   },
   redis: {
@@ -60,13 +60,13 @@ export const HEAVY_DEPENDENCY_CATALOG: Record<string, PackageKnowledge> = {
     variableName: "upstream_ttft_p95_ms",
     operator: "GT",
     thresholdValue: "650",
-    currentValue: "695",
+    currentValue: "",
     unit: "ms",
     decayWarningMargin: 0.1,
     blastRadius:
       "Decommission Redis cluster and route requests directly to provider once P95 TTFT <= 650ms.",
     probeType: "HTTP_JSON_PATH",
-    targetUrlOrQuery: "/api/telemetry/live?source=datadog-llm-synthetics",
+    targetUrlOrQuery: "",
     jsonPath: "$.metrics.upstream_ttft_p95_ms",
   },
   "@pinecone-database/pinecone": {
@@ -77,7 +77,7 @@ export const HEAVY_DEPENDENCY_CATALOG: Record<string, PackageKnowledge> = {
     variableName: "vector_embedding_cost_monthly_usd",
     operator: "LT",
     thresholdValue: "450.00",
-    currentValue: "410.00",
+    currentValue: "",
     unit: "USD / mo",
     decayWarningMargin: 0.1,
     blastRadius:
@@ -95,13 +95,13 @@ export const HEAVY_DEPENDENCY_CATALOG: Record<string, PackageKnowledge> = {
     variableName: "vector_query_p95_ms",
     operator: "LT",
     thresholdValue: "120",
-    currentValue: "105",
+    currentValue: "",
     unit: "ms",
     decayWarningMargin: 0.12,
     blastRadius:
       "Replace standalone Chroma server with in-process SQLite vector extension once query volume stabilizes.",
     probeType: "HTTP_JSON_PATH",
-    targetUrlOrQuery: "/api/telemetry/live?source=vector-db-monitor",
+    targetUrlOrQuery: "",
     jsonPath: "$.metrics.vector_query_p95_ms",
   },
   bullmq: {
@@ -112,13 +112,13 @@ export const HEAVY_DEPENDENCY_CATALOG: Record<string, PackageKnowledge> = {
     variableName: "primary_webhook_uptime_pct",
     operator: "LT",
     thresholdValue: "99.9",
-    currentValue: "99.42",
+    currentValue: "",
     unit: "%",
     decayWarningMargin: 0.003,
     blastRadius:
       "Remove 1,850 LOC BullMQ dead-letter worker + secondary relay cluster once primary provider exceeds 99.9% 30-day SLA.",
     probeType: "HTTP_JSON_PATH",
-    targetUrlOrQuery: "/api/telemetry/live?source=webhook-sla-monitor",
+    targetUrlOrQuery: "",
     jsonPath: "$.metrics.primary_webhook_uptime_pct",
   },
   "tesseract.js": {
@@ -129,13 +129,13 @@ export const HEAVY_DEPENDENCY_CATALOG: Record<string, PackageKnowledge> = {
     variableName: "multimodal_vision_token_cost_usd",
     operator: "GT",
     thresholdValue: "0.015",
-    currentValue: "0.035",
+    currentValue: "",
     unit: "USD / image",
     decayWarningMargin: 0.15,
     blastRadius:
       "Remove 850 LOC local C++ tesseract worker and invoke upstream multimodal vision directly once cost drops <= $0.015 / image.",
     probeType: "HTTP_JSON_PATH",
-    targetUrlOrQuery: "/api/telemetry/live?source=vision-pricing-index",
+    targetUrlOrQuery: "",
     jsonPath: "$.metrics.multimodal_vision_token_cost_usd",
   },
   "rate-limiter-flexible": {
@@ -146,7 +146,7 @@ export const HEAVY_DEPENDENCY_CATALOG: Record<string, PackageKnowledge> = {
     variableName: "peak_abusive_requests_per_sec",
     operator: "GT",
     thresholdValue: "800",
-    currentValue: "1150",
+    currentValue: "",
     unit: "req/s",
     decayWarningMargin: 0.1,
     blastRadius:
@@ -164,13 +164,13 @@ export const HEAVY_DEPENDENCY_CATALOG: Record<string, PackageKnowledge> = {
     variableName: "upstream_llm_input_cost_usd",
     operator: "GT",
     thresholdValue: "2.50",
-    currentValue: "3.00",
+    currentValue: "",
     unit: "USD / 1M tokens",
     decayWarningMargin: 0.1,
     blastRadius:
       "Migrate inference routes to open-source model gateway if upstream pricing breaches SLA.",
     probeType: "HTTP_JSON_PATH",
-    targetUrlOrQuery: "/api/telemetry/live?source=llm-pricing-index",
+    targetUrlOrQuery: "",
     jsonPath: "$.metrics.upstream_llm_input_cost_usd",
   },
 };
@@ -352,15 +352,6 @@ function parseAdrContent(
       existingTitles.has(title.toLowerCase()) ||
       existingVars.has(varName);
 
-    // Initial baseline estimation
-    const thrNum = Number(threshold);
-    let initialVal = threshold;
-    if (operator === "GT" || operator === "GTE") {
-      initialVal = String(Number((thrNum * 1.35).toFixed(2)));
-    } else if (operator === "LT" || operator === "LTE") {
-      initialVal = String(Number((thrNum * 0.75).toFixed(2)));
-    }
-
     const item: DiscoveredPremiseItem = {
       id: `adr-${relPath.replace(/[^a-zA-Z0-9]/g, "-")}-${varName}`,
       sourceType: "ADR_FOLDER",
@@ -372,12 +363,13 @@ function parseAdrContent(
       variableName: varName,
       operator,
       thresholdValue: threshold,
-      currentValue: initialVal,
+      // No value until a probe reports one
+      currentValue: "",
       unit,
       decayWarningMargin: 0.1,
       blastRadius,
       probeType: "HTTP_JSON_PATH",
-      targetUrlOrQuery: `/api/telemetry/live?source=${varName}`,
+      targetUrlOrQuery: "",
       jsonPath: `$.metrics.${varName}`,
       rawMarkdownSnippet: content.slice(0, 300),
       alreadyMonitored,
@@ -387,34 +379,7 @@ function parseAdrContent(
     items.push(item);
   }
 
-  // Fallback if no raw regex match: generate general architectural claim
-  if (items.length === 0 && content.length > 50) {
-    const slug = relPath.replace(/[^a-zA-Z0-9]/g, "-");
-    const item: DiscoveredPremiseItem = {
-      id: `adr-${slug}-general`,
-      sourceType: "ADR_FOLDER",
-      sourceFile: relPath,
-      targetLocus,
-      title,
-      artifactType: "ADR",
-      claim: `${title}: Operational efficiency bounds remain positive-NPV`,
-      variableName: `${slug.slice(0, 24)}_efficiency_score`,
-      operator: "GTE",
-      thresholdValue: "80.0",
-      currentValue: "92.0",
-      unit: "pts",
-      decayWarningMargin: 0.1,
-      blastRadius,
-      probeType: "HTTP_JSON_PATH",
-      targetUrlOrQuery: `/api/telemetry/live?source=${slug}`,
-      jsonPath: "$.metrics.efficiency_score",
-      rawMarkdownSnippet: content.slice(0, 300),
-      alreadyMonitored: existingTitles.has(title.toLowerCase()),
-      matchedArtifactId: null,
-    };
-    items.push(item);
-  }
-
+  // An ADR with no measurable condition yields nothing: never an invented premise
   return items;
 }
 

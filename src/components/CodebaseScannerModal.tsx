@@ -337,8 +337,9 @@ export function CodebaseScannerModal({
                           {item.unit ? ` ${item.unit}` : ""}
                         </strong>{" "}
                         <span className="text-zinc-400">
-                          (Observed: {item.currentValue}
-                          {item.unit ? ` ${item.unit}` : ""})
+                          ({item.currentValue
+                            ? `Observed: ${item.currentValue}${item.unit ? ` ${item.unit}` : ""}`
+                            : "No value yet"})
                         </span>
                       </div>
                     </div>

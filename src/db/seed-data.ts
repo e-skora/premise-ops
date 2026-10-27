@@ -1,7 +1,11 @@
 import { DecisionArtifactRecord, CompiledArtifactOutput } from "@/lib/types";
+import { OPENROUTER_MODELS_URL } from "@/lib/live-feeds";
+
+// Seeded values are demo data and are labeled that way in the UI. The one
+// exception is prem-adr-014-cost: it has no seeded value and reads the real
+// Claude Sonnet 5.5 input price from OpenRouter on its first probe run.
 
 export const SEED_HISTORICAL_SERIES: Record<string, number[]> = {
-  "prem-adr-014-cost": [4.5, 4.2, 3.8, 3.6, 3.5, 3.25, 3.1, 3.0],
   "prem-adr-014-ttft": [890, 855, 820, 795, 760, 735, 712, 695],
   "prem-vendor-redis-util": [81.0, 79.4, 78.2, 77.5, 76.8, 75.9, 75.1, 74.5],
   "prem-pr-892-uptime": [99.12, 99.18, 99.24, 99.29, 99.31, 99.36, 99.39, 99.42],
@@ -52,33 +56,23 @@ We deploy a dedicated 3-node Redis Stack cluster (\`redis-semantic-prod-01\`) ru
         unit: "USD / 1M tokens",
         operator: "GT",
         thresholdValue: "2.00",
-        currentValue: "3.00",
+        currentValue: "",
         decayWarningMargin: 0.15,
-        status: "VALID",
+        status: "UNBOUND",
         probes: [
           {
             id: "probe-adr-014-cost",
             premiseId: "prem-adr-014-cost",
             probeType: "HTTP_JSON_PATH",
-            targetUrlOrQuery: "/api/telemetry/live?source=llm-pricing-index",
-            jsonPath: "$.metrics.upstream_llm_input_cost_usd",
-            pollingIntervalSeconds: 300,
-            lastRunAt: "2026-10-19T09:30:00.000Z",
-            lastLatencyMs: 18,
-            lastRawResponse: JSON.stringify(
-              {
-                source: "llm-pricing-index",
-                provider: "anthropic-claude-sonnet",
-                metrics: {
-                  upstream_llm_input_cost_usd: 3.0,
-                  currency: "USD",
-                  unit: "1M_input_tokens",
-                },
-                timestamp: "2026-10-19T09:30:00.000Z",
-              },
-              null,
-              2
-            ),
+            targetUrlOrQuery: OPENROUTER_MODELS_URL,
+            // pricing.prompt is a string in USD per input token
+            jsonPath: '$.data[?(@.id=="anthropic/claude-sonnet-5.5")].pricing.prompt',
+            valueMultiplier: 1_000_000,
+            status: "ACTIVE",
+            pollingIntervalSeconds: 600,
+            lastRunAt: null,
+            lastLatencyMs: null,
+            lastRawResponse: null,
             lastError: null,
           },
         ],
@@ -430,11 +424,11 @@ Decommission the 8x L40S GPU Kubernetes node pool ($7,400/mo AWS EC2 G6e spend),
           unit: "USD / min",
           operator: "GT",
           thresholdValue: "0.0055",
-          currentValue: "0.0068",
+          currentValue: "",
           decayWarningMargin: 0.1,
           recommendedProbe: {
             probeType: "HTTP_JSON_PATH",
-            targetUrlOrQuery: "/api/telemetry/live?source=asr-vendor-pricing",
+            targetUrlOrQuery: "",
             jsonPath: "$.metrics.managed_asr_cost_per_min_usd",
             pollingIntervalSeconds: 300,
           },
@@ -445,11 +439,11 @@ Decommission the 8x L40S GPU Kubernetes node pool ($7,400/mo AWS EC2 G6e spend),
           unit: "ms",
           operator: "GT",
           thresholdValue: "1200",
-          currentValue: "1420",
+          currentValue: "",
           decayWarningMargin: 0.1,
           recommendedProbe: {
             probeType: "HTTP_JSON_PATH",
-            targetUrlOrQuery: "/api/telemetry/live?source=asr-synthetics",
+            targetUrlOrQuery: "",
             jsonPath: "$.metrics.external_asr_p95_latency_ms",
             pollingIntervalSeconds: 60,
           },
@@ -491,12 +485,11 @@ Delete 3,100 LOC in \`apps/web/src/sync/lz4-delta-engine.ts\`, remove the 180KB 
           unit: "KB",
           operator: "GT",
           thresholdValue: "450",
-          currentValue: "540",
+          currentValue: "",
           decayWarningMargin: 0.1,
           recommendedProbe: {
             probeType: "HTTP_JSON_PATH",
-            targetUrlOrQuery:
-              "/api/telemetry/live?source=rum-payload-telemetry",
+            targetUrlOrQuery: "",
             jsonPath: "$.metrics.p95_hydration_payload_kb",
             pollingIntervalSeconds: 120,
           },
@@ -507,7 +500,7 @@ Delete 3,100 LOC in \`apps/web/src/sync/lz4-delta-engine.ts\`, remove the 180KB 
           unit: "%",
           operator: "GT",
           thresholdValue: "3.5",
-          currentValue: "4.2",
+          currentValue: "",
           decayWarningMargin: 0.1,
           recommendedProbe: {
             probeType: "WEBHOOK_INGEST",
@@ -555,12 +548,11 @@ Tear down 6x c7gn.large EC2 routers, remove FRR BGP keepalived daemon and PagerD
           unit: "TB / mo",
           operator: "GT",
           thresholdValue: "42",
-          currentValue: "49.5",
+          currentValue: "",
           decayWarningMargin: 0.1,
           recommendedProbe: {
             probeType: "SQL_METRIC",
-            targetUrlOrQuery:
-              "SELECT sum(bytes_transferred)/1e12 FROM cur_billing_nat_hourly WHERE month = CURRENT_MONTH",
+            targetUrlOrQuery: "",
             jsonPath: "$.metrics.nat_monthly_volume_tb",
             pollingIntervalSeconds: 3600,
           },
@@ -571,11 +563,11 @@ Tear down 6x c7gn.large EC2 routers, remove FRR BGP keepalived daemon and PagerD
           unit: "USD / GB",
           operator: "GTE",
           thresholdValue: "0.045",
-          currentValue: "0.045",
+          currentValue: "",
           decayWarningMargin: 0.05,
           recommendedProbe: {
             probeType: "HTTP_JSON_PATH",
-            targetUrlOrQuery: "/api/telemetry/live?source=cloud-finops-tariff",
+            targetUrlOrQuery: "",
             jsonPath: "$.metrics.aws_nat_fee_per_gb_usd",
             pollingIntervalSeconds: 3600,
           },

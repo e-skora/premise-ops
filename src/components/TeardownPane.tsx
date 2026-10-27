@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   AlertOctagon,
   Check,
@@ -30,11 +30,11 @@ import {
   DecisionArtifactRecord,
   DispatchChannel,
   InvalidationEventRecord,
+  MultiFileTeardownPatch,
   OPERATOR_SYMBOLS,
   formatTeardownBranchName,
 } from "@/lib/types";
 import { synthesizeReplacementAdr } from "@/lib/sunset-synthesizer";
-import { buildMultiFileTeardownPatch } from "@/lib/locus-inspector";
 import { formatUsd } from "@/lib/finops-engine";
 
 interface TeardownPaneProps {
@@ -70,6 +70,40 @@ export function TeardownPane({
   extras = false,
 }: TeardownPaneProps) {
   const [scope, setScope] = useState<"selected" | "global">("selected");
+  // Caller files are found by reading the workspace on the server; the browser
+  // cannot read files, so it asks instead of guessing (undefined = loading)
+  const [serverPatches, setServerPatches] = useState<
+    Record<string, MultiFileTeardownPatch | null | undefined>
+  >({});
+  const patchArtifactId =
+    selectedArtifact && selectedArtifact.invalidationEvents.length > 0
+      ? selectedArtifact.id
+      : null;
+  const patchVersion = selectedArtifact?.lastEvaluatedAt;
+  useEffect(() => {
+    if (!patchArtifactId) return;
+    let cancelled = false;
+    fetch("/api/synthesizer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "preview", artifactId: patchArtifactId }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled) {
+          setServerPatches((prev) => ({
+            ...prev,
+            [patchArtifactId]: data.multiFilePatch ?? null,
+          }));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setServerPatches((prev) => ({ ...prev, [patchArtifactId]: null }));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [patchArtifactId, patchVersion]);
   const [copiedEventId, setCopiedEventId] = useState<string | null>(null);
   const [previewPayloadId, setPreviewPayloadId] = useState<string | null>(null);
   const [dispatchingKey, setDispatchingKey] = useState<string | null>(null);
@@ -278,7 +312,7 @@ ${ev.remediationPlan}
                   <div className="text-[11px] font-mono text-zinc-400">
                     Locus:{" "}
                     <code className="text-zinc-200">
-                      {selectedArtifact.targetLocus}
+                      {selectedArtifact.targetLocus || "No code location set"}
                     </code>
                   </div>
                   <p className="text-xs text-zinc-300 leading-relaxed">
@@ -364,11 +398,7 @@ ${ev.remediationPlan}
                     </button>
                     <span className="text-zinc-500 flex items-center gap-1 shrink-0">
                       <Clock className="w-3 h-3" />
-                      {new Date(ev.triggeredAt).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        second: "2-digit",
-                      })}
+                      {`${ev.triggeredAt.slice(11, 19)} UTC`}
                     </span>
                   </div>
 
@@ -407,7 +437,7 @@ ${ev.remediationPlan}
                   {ev.targetLocus && (
                     <div className="flex items-center gap-1.5 text-[11px] font-mono text-zinc-400 bg-zinc-900/90 px-2.5 py-1.5 border border-zinc-800">
                       <FileCode2 className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                      <span className="truncate">{ev.targetLocus}</span>
+                      <span className="truncate">{ev.targetLocus || "No code location set"}</span>
                     </div>
                   )}
 
@@ -434,23 +464,9 @@ ${ev.remediationPlan}
                       breachingEvent: ev,
                     });
 
-                    let multiFilePatch = null;
-                    try {
-                      if (art.targetLocus) {
-                        multiFilePatch = buildMultiFileTeardownPatch({
-                          targetLocus: art.targetLocus,
-                          artifactTitle: art.title,
-                          variableName: ev.variableName || "metric",
-                          operator: ev.operator || "GT",
-                          thresholdValue: ev.thresholdValue || "0",
-                          breakingValue: ev.breakingValue || "0",
-                          unit: ev.unit || "",
-                          blastRadius: art.blastRadius,
-                        });
-                      }
-                    } catch {
-                      // ignore
-                    }
+                    const multiFilePatch = serverPatches[art.id] ?? null;
+                    const isCountingFiles =
+                      Boolean(art.targetLocus) && serverPatches[art.id] === undefined;
 
                     const isRetiring = retiringArtifactId === art.id;
                     const isRetired =
@@ -463,7 +479,7 @@ ${ev.remediationPlan}
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-sky-400">
                             <Sparkles className="w-3.5 h-3.5 text-sky-400" />
-                            <span>Autonomous Sunset Synthesizer</span>
+                            <span>Sunset Synthesizer</span>
                           </div>
                           <span className="text-[9px] font-mono px-1.5 py-0.5 bg-sky-950 text-sky-300 border border-sky-800">
                             HORIZON E
@@ -495,6 +511,11 @@ ${ev.remediationPlan}
                         </div>
 
                         {/* Multi-File Caller Blast Radius Scanner */}
+                        {isCountingFiles && (
+                          <div className="p-2 bg-zinc-950/80 border border-zinc-800 text-[11px] font-mono text-zinc-500">
+                            Counting affected files...
+                          </div>
+                        )}
                         {multiFilePatch && (
                           <div className="p-2 bg-zinc-950/80 border border-zinc-800 space-y-2 font-mono">
                             <div className="flex items-center justify-between text-[11px]">
@@ -597,7 +618,7 @@ ${ev.remediationPlan}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-emerald-400">
                           <Bot className="w-3.5 h-3.5" />
-                          <span>Autonomous GitHub PR Bot</span>
+                          <span>GitHub PR Bot</span>
                         </div>
                         <span className="text-[9px] font-mono px-1.5 py-0.5 bg-emerald-950 text-emerald-300 border border-emerald-800">
                           HORIZON B
@@ -645,7 +666,7 @@ ${ev.remediationPlan}
                         <div className="flex items-center justify-between text-zinc-400">
                           <label>GitHub Personal Access Token (Optional)</label>
                           <span className="text-[9px] text-zinc-500">
-                            Blank = Staged Dry-Run
+                            Blank = dry run, nothing is sent
                           </span>
                         </div>
                         <input
@@ -671,45 +692,65 @@ ${ev.remediationPlan}
                         {dispatchingKey === `${ev.id}:GITHUB_PR` ? (
                           <>
                             <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Opening Teardown Branch &amp; PR...</span>
+                            <span>Preparing teardown PR...</span>
                           </>
                         ) : (
                           <>
                             <GitPullRequest className="w-3.5 h-3.5" />
-                            <span>🤖 Dispatch Autonomous Teardown PR</span>
+                            <span>Draft Teardown PR (opens on GitHub only with a token)</span>
                           </>
                         )}
                       </button>
 
-                      {/* Display Staged PR Result if available */}
-                      {(latestPrResultByEvent[ev.id] ||
-                        dispatches.find((d) => d.channel === "GITHUB_PR")) && (
-                        <div className="p-2 bg-zinc-950 border border-emerald-500/30 text-[10px] font-mono space-y-1.5">
-                          <div className="flex items-center justify-between text-emerald-300 font-semibold">
-                            <span className="flex items-center gap-1">
-                              <GitBranch className="w-3 h-3 text-sky-400" />
-                              <span className="truncate max-w-[170px]">
-                                {latestPrResultByEvent[ev.id]?.branchName ||
-                                  prBranchByEvent[ev.id] ||
-                                  formatTeardownBranchName(ev.artifactId)}
+                      {/* Latest PR result: a link only when GitHub really opened the PR */}
+                      {(() => {
+                        const latest = latestPrResultByEvent[ev.id];
+                        const logged = dispatches.find((d) => d.channel === "GITHUB_PR");
+                        if (!latest && !logged) return null;
+                        const status = latest?.status ?? logged?.deliveryStatus ?? null;
+                        const prUrl = latest ? latest.prUrl : logged?.externalUrl || null;
+                        const statusText =
+                          status === "SENT"
+                            ? `Opened PR #${latest?.prNumber ?? ""}`.trim()
+                            : status === "FAILED"
+                              ? `Failed: ${latest?.error ?? logged?.errorMessage ?? "unknown error"}`
+                              : status === "DRY_RUN"
+                                ? `Dry run: nothing was sent.${latest?.dryRunReason ? ` ${latest.dryRunReason}` : ""}`
+                                : logged?.summary ?? "";
+                        return (
+                          <div className="p-2 bg-zinc-950 border border-emerald-500/30 text-[10px] font-mono space-y-1.5">
+                            <div className="flex items-center justify-between text-emerald-300 font-semibold">
+                              <span className="flex items-center gap-1">
+                                <GitBranch className="w-3 h-3 text-sky-400" />
+                                <span className="truncate max-w-[170px]">
+                                  {latest?.branchName ||
+                                    prBranchByEvent[ev.id] ||
+                                    formatTeardownBranchName(ev.artifactId)}
+                                </span>
                               </span>
-                            </span>
-                            <a
-                              href={
-                                latestPrResultByEvent[ev.id]?.prUrl ||
-                                dispatches.find((d) => d.channel === "GITHUB_PR")
-                                  ?.externalUrl ||
-                                "#"
+                              {status === "SENT" && prUrl && (
+                                <a
+                                  href={prUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-emerald-400 hover:underline flex items-center gap-0.5 shrink-0"
+                                >
+                                  <span>View PR</span>
+                                  <ExternalLink className="w-3 h-3" />
+                                </a>
+                              )}
+                            </div>
+                            <div
+                              className={
+                                status === "FAILED"
+                                  ? "text-rose-300"
+                                  : status === "SENT"
+                                    ? "text-emerald-300"
+                                    : "text-zinc-300"
                               }
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-emerald-400 hover:underline flex items-center gap-0.5 shrink-0"
                             >
-                              <span>View PR</span>
-                              <ExternalLink className="w-3 h-3" />
-                            </a>
-                          </div>
-
+                              {statusText}
+                            </div>
                           {latestPrResultByEvent[ev.id]?.ghCliCommand && (
                             <div className="flex items-center justify-between gap-1 bg-zinc-900 p-1.5 border border-zinc-800">
                               <code className="text-zinc-300 text-[9px] truncate">
@@ -730,8 +771,9 @@ ${ev.remediationPlan}
                               </button>
                             </div>
                           )}
-                        </div>
-                      )}
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     {/* Secondary Channel Triggers */}
@@ -781,7 +823,6 @@ ${ev.remediationPlan}
                         <span>
                           Outbound Dispatch Audit Log ({dispatches.length})
                         </span>
-                        <span>HTTP 201 CREATED</span>
                       </div>
                       <div className="space-y-1 max-h-28 overflow-y-auto">
                         {dispatches.map((d) => (
@@ -793,16 +834,39 @@ ${ev.remediationPlan}
                               <span className="px-1 py-0.2 bg-zinc-800 text-emerald-300 mr-1.5">
                                 {d.channel}
                               </span>
+                              <span
+                                className={`px-1 py-0.2 mr-1.5 border ${
+                                  d.deliveryStatus === "SENT"
+                                    ? "border-emerald-500/40 text-emerald-300"
+                                    : d.deliveryStatus === "FAILED"
+                                      ? "border-rose-500/40 text-rose-300"
+                                      : "border-zinc-700 text-zinc-400"
+                                }`}
+                              >
+                                {d.deliveryStatus === "SENT"
+                                  ? "SENT"
+                                  : d.deliveryStatus === "FAILED"
+                                    ? "FAILED"
+                                    : d.deliveryStatus === "DRY_RUN"
+                                      ? "DRY RUN"
+                                      : "NOT RECORDED"}
+                              </span>
                               <span className="text-zinc-300 truncate">
                                 {d.summary}
                               </span>
+                              {d.externalUrl && d.deliveryStatus === "SENT" && (
+                                <a
+                                  href={d.externalUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="ml-1.5 text-emerald-400 hover:underline"
+                                >
+                                  open
+                                </a>
+                              )}
                             </div>
                             <span className="text-zinc-500 shrink-0">
-                              {new Date(d.dispatchedAt).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                second: "2-digit",
-                              })}
+                              {`${d.dispatchedAt.slice(11, 19)} UTC`}
                             </span>
                           </div>
                         ))}
