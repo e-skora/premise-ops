@@ -41,6 +41,13 @@ export const ProbeTypeEnum = z.enum([
 ]);
 export type ProbeType = z.infer<typeof ProbeTypeEnum>;
 
+// ACTIVE probes run. UNBOUND probes are suggestions with no real source yet.
+export const ProbeConnectionStatusEnum = z.enum(["ACTIVE", "UNBOUND"]);
+export type ProbeConnectionStatus = z.infer<typeof ProbeConnectionStatusEnum>;
+
+// SENT: the outside service accepted it. DRY_RUN: nothing left this app.
+export type DispatchStatus = "SENT" | "DRY_RUN" | "FAILED";
+
 export const DispatchChannelEnum = z.enum([
   "GITHUB_PR",
   "GITHUB_ISSUE",
@@ -72,6 +79,10 @@ export interface ProbeRecord {
   targetUrlOrQuery: string;
   jsonPath: string;
   pollingIntervalSeconds: number;
+  /** Multiplies the extracted number, e.g. 1000000 turns USD per token into USD per 1M tokens */
+  valueMultiplier?: number;
+  /** Missing means ACTIVE */
+  status?: ProbeConnectionStatus;
   lastRunAt: string | null;
   lastLatencyMs: number | null;
   lastRawResponse: string | null;
@@ -86,9 +97,14 @@ export interface PremiseRecord {
   unit: string;
   operator: Operator;
   thresholdValue: string;
+  /** Empty until a probe or a person reports a real value */
   currentValue: string;
   decayWarningMargin: number;
   status: PremiseStatus;
+  /** Where currentValue came from, e.g. "live:https://..." or "demo-seed" */
+  valueSource?: string | null;
+  /** When currentValue was reported */
+  valueObservedAt?: string | null;
   probes: ProbeRecord[];
   metricSamples?: MetricSampleRecord[];
 }
@@ -102,8 +118,12 @@ export interface OutboundDispatchLogRecord {
   summary: string;
   payloadPreview: string;
   responseStatus: number;
+  /** Empty unless something real exists at that address */
   externalUrl: string;
   dispatchedAt: string;
+  /** Null for rows written before delivery status was recorded */
+  deliveryStatus?: DispatchStatus | null;
+  errorMessage?: string | null;
 }
 
 export interface GitHubPrRequest {
@@ -117,8 +137,10 @@ export interface GitHubPrRequest {
 
 export interface GitHubPrResult {
   ok: boolean;
-  prNumber: number;
-  prUrl: string;
+  status: DispatchStatus;
+  /** Null unless GitHub really opened the PR */
+  prNumber: number | null;
+  prUrl: string | null;
   branchName: string;
   commitSha: string | null;
   isDryRun: boolean;
@@ -128,6 +150,8 @@ export interface GitHubPrResult {
   compareUrl: string;
   targetEndpoint: string;
   error?: string;
+  /** Why nothing was sent, for DRY_RUN results */
+  dryRunReason?: string;
 }
 
 export interface LocusLineRecord {
@@ -234,8 +258,9 @@ export const CompiledPremiseSchema = z.object({
     .describe("Boundary value where the decision holds true"),
   currentValue: z
     .union([z.number(), z.string()])
+    .default("")
     .transform((v) => String(v))
-    .describe("Initial baseline or live observed telemetry value"),
+    .describe("Observed value; empty until a probe reports one"),
   decayWarningMargin: z
     .number()
     .min(0.001)
@@ -246,9 +271,12 @@ export const CompiledPremiseSchema = z.object({
     ),
   recommendedProbe: z.object({
     probeType: ProbeTypeEnum,
-    targetUrlOrQuery: z.string(),
+    targetUrlOrQuery: z.string().default(""),
     jsonPath: z.string().default("$.value"),
     pollingIntervalSeconds: z.number().int().positive().default(60),
+    valueMultiplier: z.number().positive().optional(),
+    // Suggested probes stay UNBOUND (the default when missing) until a person sets a real source
+    status: ProbeConnectionStatusEnum.optional(),
   }),
 });
 
@@ -548,6 +576,8 @@ export interface SlackBlockKitPayload {
 
 export interface SlackDispatchResult {
   ok: boolean;
+  status: DispatchStatus;
+  /** 0 when nothing was sent */
   statusCode: number;
   webhookUrl: string;
   summary: string;
@@ -575,6 +605,8 @@ export interface PagerDutyV2Payload {
 
 export interface PagerDutyDispatchResult {
   ok: boolean;
+  status: DispatchStatus;
+  /** 0 when nothing was sent */
   statusCode: number;
   targetEndpoint: string;
   dedupKey: string;
