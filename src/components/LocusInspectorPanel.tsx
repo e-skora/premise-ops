@@ -46,7 +46,7 @@ export function LocusInspectorPanel({ artifact }: LocusInspectorPanelProps) {
       variableName: primaryPremise?.variableName || "metric",
       operator: primaryPremise?.operator || "GT",
       thresholdValue: primaryPremise?.thresholdValue || "0",
-      breakingValue: primaryPremise?.currentValue || "0",
+      breakingValue: primaryPremise?.currentValue || "no value reported",
       unit: primaryPremise?.unit || "",
       blastRadius: artifact.blastRadius,
     });
@@ -111,7 +111,7 @@ export function LocusInspectorPanel({ artifact }: LocusInspectorPanelProps) {
           variableName: primaryPremise?.variableName || "metric",
           operator: primaryPremise?.operator || "GT",
           thresholdValue: primaryPremise?.thresholdValue || "0",
-          breakingValue: primaryPremise?.currentValue || "0",
+          breakingValue: primaryPremise?.currentValue || "no value reported",
           unit: primaryPremise?.unit || "",
           blastRadius: artifact.blastRadius,
         }),
@@ -169,7 +169,7 @@ export function LocusInspectorPanel({ artifact }: LocusInspectorPanelProps) {
               )}
             </div>
             <div className="text-[10px] text-zinc-500 truncate">
-              Target: <code className="text-zinc-300">{artifact.targetLocus}</code>
+              Target: <code className="text-zinc-300">{artifact.targetLocus || "No code location set"}</code>
             </div>
           </div>
         </div>

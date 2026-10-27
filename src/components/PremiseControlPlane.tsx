@@ -68,6 +68,7 @@ import { LocusInspectorPanel } from "./LocusInspectorPanel";
 import { CommandPalette } from "./CommandPalette";
 import { VisualTopologyGraph } from "./VisualTopologyGraph";
 import { WalkthroughTour } from "./WalkthroughTour";
+import PremiseSourceBadge, { premiseValueText } from "./PremiseSourceBadge";
 
 interface PremiseControlPlaneProps {
   initialArtifacts: DecisionArtifactRecord[];
@@ -87,6 +88,7 @@ interface InlineEditDraft {
   probeType: ProbeType;
   targetUrlOrQuery: string;
   jsonPath: string;
+  valueMultiplier: string;
 }
 
 export function PremiseControlPlane({
@@ -480,9 +482,9 @@ export function PremiseControlPlane({
           thresholdValue: premise.thresholdValue,
           decayWarningMargin: String(premise.decayWarningMargin),
           probeType: probe?.probeType || "HTTP_JSON_PATH",
-          targetUrlOrQuery:
-            probe?.targetUrlOrQuery || "/api/telemetry/live?source=custom",
-          jsonPath: probe?.jsonPath || `$.metrics.${premise.variableName}`,
+          targetUrlOrQuery: probe?.targetUrlOrQuery || "",
+          jsonPath: probe?.jsonPath || "$.value",
+          valueMultiplier: String(probe?.valueMultiplier ?? 1),
         },
       }));
     }
@@ -511,6 +513,7 @@ export function PremiseControlPlane({
           probeType: draft.probeType,
           targetUrlOrQuery: draft.targetUrlOrQuery,
           jsonPath: draft.jsonPath,
+          valueMultiplier: Number(draft.valueMultiplier) || 1,
         }),
       });
       const data = await res.json();
@@ -678,7 +681,7 @@ export function PremiseControlPlane({
             <span
               className={`ml-2 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.2 border font-mono ${badgeStyles}`}
             >
-              [{matchedPremise.status}: {matchedPremise.currentValue}{" "}
+              [{matchedPremise.status}: {premiseValueText(matchedPremise)}{" "}
               {OPERATOR_SYMBOLS[matchedPremise.operator]}{" "}
               {matchedPremise.thresholdValue} {matchedPremise.unit}]
             </span>
@@ -1265,7 +1268,9 @@ export function PremiseControlPlane({
 
                   <div className="flex items-center gap-1.5 text-[11px] font-mono text-zinc-400 mb-2 truncate">
                     <FileCode2 className="w-3 h-3 text-zinc-500 shrink-0" />
-                    <span className="truncate">{art.targetLocus}</span>
+                    <span className="truncate">
+                      {art.targetLocus || "No code location set"}
+                    </span>
                   </div>
 
                   <div className="flex items-center justify-between pt-2 border-t border-zinc-800/60 text-[10px] font-mono text-zinc-400">
@@ -1387,7 +1392,7 @@ export function PremiseControlPlane({
                     </span>
                     <span className="text-[11px] font-mono text-zinc-400 flex items-center gap-1">
                       <FileCode2 className="w-3.5 h-3.5 text-emerald-400" />
-                      <code>{selectedArtifact.targetLocus}</code>
+                      <code>{selectedArtifact.targetLocus || "No code location set"}</code>
                     </span>
                   </div>
 
@@ -1491,14 +1496,18 @@ export function PremiseControlPlane({
                       : "border-zinc-800 bg-zinc-900/30";
 
                   const badgeStyle =
-                    premise.status === "BROKEN"
+                    premise.status === "UNBOUND"
+                      ? "bg-zinc-800 text-zinc-300 border-zinc-700"
+                      : premise.status === "BROKEN"
                       ? "bg-rose-500/20 text-rose-300 border-rose-500/50"
                       : premise.status === "DECAYING"
                       ? "bg-amber-500/20 text-amber-300 border-amber-500/50"
                       : "bg-emerald-500/15 text-emerald-300 border-emerald-500/40";
 
                   const barColor =
-                    premise.status === "BROKEN"
+                    premise.status === "UNBOUND"
+                      ? "bg-zinc-600"
+                      : premise.status === "BROKEN"
                       ? "bg-rose-500"
                       : premise.status === "DECAYING"
                       ? "bg-amber-400"
@@ -1697,6 +1706,43 @@ export function PremiseControlPlane({
                                     },
                                   }))
                                 }
+                                placeholder="Empty = suggested, not connected"
+                                className="w-full px-2 py-1 text-xs bg-zinc-900 border border-zinc-700 text-zinc-100 focus:outline-none focus:border-sky-400"
+                              />
+                            </div>
+
+                            {/* JSON path and multiplier for HTTP JSON sources */}
+                            <div className="sm:col-span-8 space-y-1">
+                              <label className="text-[9px] uppercase text-zinc-400 block">
+                                JSONPath (supports [?(@.id=="x")] filters)
+                              </label>
+                              <input
+                                type="text"
+                                value={draft.jsonPath}
+                                onChange={(e) =>
+                                  setEditDrafts((prev) => ({
+                                    ...prev,
+                                    [premise.id]: { ...draft, jsonPath: e.target.value },
+                                  }))
+                                }
+                                className="w-full px-2 py-1 text-xs bg-zinc-900 border border-zinc-700 text-zinc-100 focus:outline-none focus:border-sky-400"
+                              />
+                            </div>
+                            <div className="sm:col-span-4 space-y-1">
+                              <label className="text-[9px] uppercase text-zinc-400 block">
+                                Value multiplier
+                              </label>
+                              <input
+                                type="number"
+                                min="0"
+                                step="any"
+                                value={draft.valueMultiplier}
+                                onChange={(e) =>
+                                  setEditDrafts((prev) => ({
+                                    ...prev,
+                                    [premise.id]: { ...draft, valueMultiplier: e.target.value },
+                                  }))
+                                }
                                 className="w-full px-2 py-1 text-xs bg-zinc-900 border border-zinc-700 text-zinc-100 focus:outline-none focus:border-sky-400"
                               />
                             </div>
@@ -1738,7 +1784,7 @@ export function PremiseControlPlane({
                       <div className="p-3 bg-zinc-950 border border-zinc-800 grid grid-cols-1 sm:grid-cols-12 gap-2 items-center font-mono">
                         <div className="sm:col-span-5">
                           <div className="text-[9px] uppercase text-zinc-500">
-                            LIVE TELEMETRY VALUE
+                            CURRENT VALUE
                           </div>
                           <div
                             className={`text-sm font-bold tabular-nums ${
@@ -1749,10 +1795,16 @@ export function PremiseControlPlane({
                                 : "text-emerald-400"
                             }`}
                           >
-                            {premise.currentValue}{" "}
-                            <span className="text-xs font-normal text-zinc-400">
-                              {premise.unit}
-                            </span>
+                            {premise.currentValue.trim() ? (
+                              <>
+                                {premise.currentValue}{" "}
+                                <span className="text-xs font-normal text-zinc-400">
+                                  {premise.unit}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="text-zinc-500">No value yet</span>
+                            )}
                           </div>
                         </div>
 
@@ -1775,6 +1827,9 @@ export function PremiseControlPlane({
                           </div>
                         </div>
                       </div>
+
+                      {/* Where the value came from: Live, Reported, Demo data or No value yet */}
+                      <PremiseSourceBadge premise={premise} />
 
                       {/* Track 1: Historical Telemetry Sparkline & Time-to-Invalidation Forecast */}
                       <SparklineChart premise={premise} />
@@ -1865,18 +1920,24 @@ export function PremiseControlPlane({
                                 {probe.probeType}
                               </span>
                               <span className="text-zinc-400 truncate max-w-[230px]">
-                                {probe.targetUrlOrQuery}
+                                {probe.status === "UNBOUND" || !probe.targetUrlOrQuery
+                                  ? "suggested, not connected"
+                                  : probe.targetUrlOrQuery}
                               </span>
                             </div>
 
                             <div className="flex items-center gap-2">
                               <span className="text-[10px] text-zinc-500">
-                                {probe.lastLatencyMs ?? 14}ms
+                                {probe.lastLatencyMs !== null && probe.lastLatencyMs !== undefined
+                                  ? `${probe.lastLatencyMs}ms`
+                                  : "not run yet"}
                               </span>
                               <button
                                 type="button"
                                 onClick={() => handleRunAllProbes(premise.id)}
-                                disabled={runningPremiseId === premise.id}
+                                disabled={
+                                  runningPremiseId === premise.id || probe.status === "UNBOUND"
+                                }
                                 className="px-2 py-0.5 text-[10px] bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700 flex items-center gap-1"
                               >
                                 <Play className="w-2.5 h-2.5 text-emerald-400" />
@@ -1910,12 +1971,15 @@ export function PremiseControlPlane({
                             <div className="mt-2 p-2.5 bg-zinc-950 border border-zinc-800/90 font-mono text-[10px] space-y-1">
                               <div className="flex items-center justify-between text-zinc-500">
                                 <span>SELECTOR: {probe.jsonPath}</span>
+                                {(probe.valueMultiplier ?? 1) !== 1 && (
+                                  <span>MULTIPLIER: x{probe.valueMultiplier}</span>
+                                )}
                                 <span>
                                   INTERVAL: {probe.pollingIntervalSeconds}s
                                 </span>
                               </div>
                               <pre className="text-emerald-300/90 overflow-x-auto pt-1 leading-relaxed">
-                                {probe.lastRawResponse || "{}"}
+                                {probe.lastRawResponse || "No response recorded yet."}
                               </pre>
                             </div>
                           )}

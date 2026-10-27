@@ -30,6 +30,28 @@ export function liveSourceUrl(source: string | null | undefined): string | null 
   return isLiveSource(source) ? source!.slice(LIVE_SOURCE_PREFIX.length) : null;
 }
 
+// Sources that mean the app made the value up for the demo (seed, chaos
+// drawer, CLI simulations, the demo feed and its jitter)
+const DEMO_SOURCE_PREFIXES = [
+  DEMO_SEED_SOURCE,
+  "chaos-",
+  "premise-cli-",
+  "sse-autonomous-daemon",
+  "probe:",
+  "historical",
+];
+
+/** live: fetched from a real outside source. reported: pushed in by someone. demo: made up by this app. */
+export function classifyValueSource(
+  source: string | null | undefined
+): "live" | "reported" | "demo" {
+  if (isLiveSource(source)) return "live";
+  if (!source || DEMO_SOURCE_PREFIXES.some((prefix) => source.startsWith(prefix))) {
+    return "demo";
+  }
+  return "reported";
+}
+
 export function isOutsideUrl(target: string): boolean {
   return /^https?:\/\//i.test(target.trim());
 }

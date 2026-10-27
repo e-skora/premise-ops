@@ -11,6 +11,14 @@ interface SparklineChartProps {
 
 export function SparklineChart({ premise }: SparklineChartProps) {
   const samples = premise.metricSamples || [];
+  // Nothing measured yet: draw nothing rather than a made-up line
+  if (samples.length === 0 && !premise.currentValue.trim()) {
+    return (
+      <div className="p-2 bg-zinc-950 border border-zinc-800 text-[10px] font-mono text-zinc-500">
+        No history yet. The chart starts with the first real value.
+      </div>
+    );
+  }
   const threshold = Number(premise.thresholdValue);
   const current = Number(premise.currentValue);
 

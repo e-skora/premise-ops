@@ -35,6 +35,7 @@ import {
   OPERATOR_SYMBOLS,
   PremiseRecord,
 } from "@/lib/types";
+import { premiseValueText } from "./PremiseSourceBadge";
 
 // Commands for features hidden unless PREMISE_EXTRAS=1
 const EXTRAS_COMMAND_IDS = ["cmd-topology-view", "cmd-time-machine", "cmd-finops"];
@@ -442,7 +443,7 @@ export function CommandPalette({
 
         items.push({
           id: `prem-${p.id}`,
-          title: `${p.variableName} (${p.currentValue} ${OPERATOR_SYMBOLS[p.operator]} ${p.thresholdValue} ${p.unit})`,
+          title: `${p.variableName} (${premiseValueText(p)} ${OPERATOR_SYMBOLS[p.operator]} ${p.thresholdValue} ${p.unit})`,
           subtitle: `In ${art.title}: "${p.claim}"`,
           category: "premises",
           badge: p.status,

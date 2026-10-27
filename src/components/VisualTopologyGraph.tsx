@@ -39,6 +39,7 @@ import {
   TopologyNode,
 } from "@/lib/topology-engine";
 import { formatUsd } from "@/lib/finops-engine";
+import { premiseValueText } from "./PremiseSourceBadge";
 
 interface VisualTopologyGraphProps {
   artifacts: DecisionArtifactRecord[];
@@ -537,7 +538,7 @@ export function VisualTopologyGraph({
                   {/* Locus Target */}
                   <div className="text-[10px] text-zinc-400 truncate flex items-center gap-1">
                     <FileCode2 className="w-3 h-3 text-emerald-400 shrink-0" />
-                    <span className="truncate">{node.targetLocus}</span>
+                    <span className="truncate">{node.targetLocus || "No code location set"}</span>
                   </div>
                 </div>
 
@@ -609,7 +610,7 @@ export function VisualTopologyGraph({
             <div className="text-[11px] flex items-center justify-between gap-2 bg-zinc-900/60 p-2 border border-zinc-800">
               <div className="truncate flex items-center gap-1.5 text-zinc-300">
                 <FileCode2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <span className="truncate">{selectedNode.targetLocus}</span>
+                <span className="truncate">{selectedNode.targetLocus || "No code location set"}</span>
               </div>
               {onOpenLocusInspector && (
                 <button
@@ -695,7 +696,7 @@ export function VisualTopologyGraph({
                     <div className="truncate">
                       <div className="font-bold truncate">{p.variableName}</div>
                       <div className="opacity-75 text-[9px] truncate">
-                        {p.currentValue} {OPERATOR_SYMBOLS[p.operator]}{" "}
+                        {premiseValueText(p)} {OPERATOR_SYMBOLS[p.operator]}{" "}
                         {p.thresholdValue} {p.unit}
                       </div>
                     </div>
