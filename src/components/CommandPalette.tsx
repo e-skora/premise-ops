@@ -30,6 +30,7 @@ import {
   Compass,
 } from "lucide-react";
 import {
+  ARTIFACT_STATUS_LABELS,
   DecisionArtifactRecord,
   LogicCombinator,
   OPERATOR_SYMBOLS,
@@ -405,6 +406,8 @@ export function CommandPalette({
         badgeStyle = "bg-rose-950 text-rose-300 border-rose-500/50";
       } else if (art.status === "AT_RISK") {
         badgeStyle = "bg-amber-950 text-amber-300 border-amber-500/40";
+      } else if (art.status === "NO_DATA") {
+        badgeStyle = "bg-zinc-900 text-zinc-400 border-zinc-600";
       }
 
       items.push({
@@ -412,7 +415,9 @@ export function CommandPalette({
         title: art.title,
         subtitle: `${art.targetLocus} • ${art.premises.length} premise(s) • ${art.blastRadius.slice(0, 90)}...`,
         category: "decisions",
-        badge: art.cascadedFromId ? "CASCADED" : art.status,
+        badge: art.cascadedFromId
+          ? "CASCADED"
+          : ARTIFACT_STATUS_LABELS[art.status] ?? art.status,
         badgeStyle,
         icon: <FileCode2 className="w-4 h-4 text-zinc-300" />,
         keywords: [

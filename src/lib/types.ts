@@ -14,8 +14,19 @@ export const ArtifactStatusEnum = z.enum([
   "INVALIDATED",
   "DEPRECATED_BY_PREMISE_ENGINE",
   "RETIRED",
+  // No premise has a value yet, so nothing has been checked
+  "NO_DATA",
 ]);
 export type ArtifactStatus = z.infer<typeof ArtifactStatusEnum>;
+
+export const ARTIFACT_STATUS_LABELS: Record<ArtifactStatus, string> = {
+  HEALTHY: "HEALTHY",
+  AT_RISK: "AT_RISK",
+  INVALIDATED: "INVALIDATED",
+  DEPRECATED_BY_PREMISE_ENGINE: "DEPRECATED_BY_PREMISE_ENGINE",
+  RETIRED: "RETIRED",
+  NO_DATA: "No data",
+};
 
 export const LogicCombinatorEnum = z.enum(["ANY", "ALL"]);
 export type LogicCombinator = z.infer<typeof LogicCombinatorEnum>;

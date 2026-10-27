@@ -45,6 +45,19 @@ describe("Premise Evaluator & Drift Forecaster", () => {
     expect(computeArtifactStatus(["VALID", "VALID"], "ANY")).toBe("HEALTHY");
   });
 
+  test("computeArtifactStatus says NO_DATA, never HEALTHY, when no premise has a value", () => {
+    expect(computeArtifactStatus([], "ANY")).toBe("NO_DATA");
+    expect(computeArtifactStatus(["UNBOUND"], "ANY")).toBe("NO_DATA");
+    expect(computeArtifactStatus(["UNBOUND", "UNBOUND"], "ALL")).toBe(
+      "NO_DATA"
+    );
+    // One real value is enough to judge the decision
+    expect(computeArtifactStatus(["UNBOUND", "VALID"], "ANY")).toBe("HEALTHY");
+    expect(computeArtifactStatus(["UNBOUND", "BROKEN"], "ANY")).toBe(
+      "INVALIDATED"
+    );
+  });
+
   test("computeDriftForecast computes linear regression velocity and TTI samples", () => {
     const samples = [890, 855, 820, 795, 760, 735, 712, 695].map(
       (value, idx) => ({

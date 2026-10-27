@@ -155,7 +155,8 @@ export function computeArtifactStatus(
   premiseStatuses: PremiseStatus[],
   logicCombinator: LogicCombinator = "ANY"
 ): ArtifactStatus {
-  if (premiseStatuses.length === 0) return "HEALTHY";
+  // Nothing measured yet: never call that healthy
+  if (premiseStatuses.every((s) => s === "UNBOUND")) return "NO_DATA";
 
   if (logicCombinator === "ALL") {
     const allBroken = premiseStatuses.every((s) => s === "BROKEN");

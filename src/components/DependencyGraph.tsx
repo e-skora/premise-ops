@@ -13,6 +13,7 @@ import {
   Zap,
 } from "lucide-react";
 import {
+  ARTIFACT_STATUS_LABELS,
   DecisionArtifactRecord,
   LogicCombinator,
   OPERATOR_SYMBOLS,
@@ -210,13 +211,15 @@ export function DependencyGraph({
                 ? "border-rose-500 bg-rose-950/30 text-rose-200"
                 : artifact.status === "AT_RISK"
                 ? "border-amber-500/60 bg-amber-950/20 text-amber-200"
+                : artifact.status === "NO_DATA"
+                ? "border-zinc-600 bg-zinc-900/60 text-zinc-300"
                 : "border-emerald-500/50 bg-emerald-950/15 text-emerald-200"
             }`}
           >
             <div className="flex items-center justify-between text-[10px] mb-1">
               <span className="uppercase opacity-75">LOCUS STATE</span>
               <span className="font-bold px-1.5 py-0.2 bg-zinc-950/80 border border-current">
-                {artifact.status}
+                {ARTIFACT_STATUS_LABELS[artifact.status] ?? artifact.status}
               </span>
             </div>
             <div className="text-xs font-bold truncate mb-1">
