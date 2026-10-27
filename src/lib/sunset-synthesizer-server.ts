@@ -63,7 +63,7 @@ export async function retireAndPromoteArtifact(params: {
       variableName: anchorPremise?.variableName || "metric",
       operator: anchorPremise?.operator || "GT",
       thresholdValue: anchorPremise?.thresholdValue || "0",
-      breakingValue: anchorPremise?.currentValue || "0",
+      breakingValue: anchorPremise?.currentValue || "no value reported",
       unit: anchorPremise?.unit || "",
       blastRadius: oldArtifact.blastRadius,
       cascadedFromTitle: oldArtifact.cascadedFromId

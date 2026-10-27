@@ -223,15 +223,15 @@ function parseFileForInlinePremise(
     const unit = metricMatch ? metricMatch[4].trim() : "";
     const metaParens = metricMatch ? metricMatch[5] || "" : "";
 
-    const currentMatch = metaParens.match(/current:\s*(-?\d+(?:\.\d+)?)/i);
     const marginMatch = metaParens.match(/margin:\s*(0?\.\d+)/i);
 
-    const currentValue = currentMatch ? currentMatch[1] : thresholdValue;
+    // A code comment is not a measurement: no value until a probe reports one
+    const currentValue = "";
     const decayWarningMargin = marginMatch ? Number(marginMatch[1]) : 0.12;
 
     // Parse probe spec: "SQL_METRIC | SELECT ..." or "PROMQL | avg_over_time(...)"
     let probeType: ProbeType = "HTTP_JSON_PATH";
-    let targetUrlOrQuery = `/api/telemetry/live?source=${variableName}`;
+    let targetUrlOrQuery = "";
     if (tags.probe) {
       const parts = tags.probe.split("|").map((s) => s.trim());
       if (parts.length >= 2) {
@@ -328,7 +328,7 @@ function parseFileForInlinePremise(
         (boundMatch ? boundMatch[3] : "0");
       const unit =
         primaryPremise?.unit || (boundMatch ? boundMatch[4] : "");
-      const currentValue = primaryPremise?.currentValue || thresholdValue;
+      const currentValue = primaryPremise?.currentValue || "";
       const lineEnd = Math.min(lines.length, 30);
 
       return {
@@ -351,8 +351,7 @@ function parseFileForInlinePremise(
         probeType:
           primaryPremise?.probes[0]?.probeType || "HTTP_JSON_PATH",
         targetUrlOrQuery:
-          primaryPremise?.probes[0]?.targetUrlOrQuery ||
-          `/api/telemetry/live?source=${variableName}`,
+          primaryPremise?.probes[0]?.targetUrlOrQuery || "",
         blastRadius:
           matchedArt?.blastRadius ||
           blastLine.replace(/^(?:\s*\/\/|\s*#)\s*Blast Radius:\s*/i, "").trim(),

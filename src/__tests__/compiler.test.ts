@@ -97,9 +97,13 @@ describe("Deterministic compiler", () => {
   });
 
   test("a document with no measurable premise is an error, not a made-up premise", async () => {
-    await expect(
-      compileDecisionArtifact({ rawContent: "# ADR-1\nWe like Postgres. It is nice." })
-    ).rejects.toThrow("No measurable premise found");
+    let message = "";
+    try {
+      await compileDecisionArtifact({ rawContent: "# ADR-1\nWe like Postgres. It is nice." });
+    } catch (err) {
+      message = err instanceof Error ? err.message : String(err);
+    }
+    expect(message).toContain("No measurable premise found");
   });
 
   test("templates come back as suggestions with no values", async () => {
@@ -159,8 +163,8 @@ describe("LLM extraction", () => {
     // The test preload's fetch guard refuses the request
     const res = await compileDecisionArtifact({ rawContent: ADR_021 });
     expect(res.compilerEngine).toBe("deterministic-ast-parser");
-    expect(res.notice).toStartWith("AI extraction failed: ");
-    expect(res.notice).toEndWith("Used the basic parser.");
+    expect(res.notice?.startsWith("AI extraction failed: ")).toBe(true);
+    expect(res.notice?.endsWith("Used the basic parser.")).toBe(true);
     expect(res.compiled.premises.length).toBe(3);
   });
 
@@ -168,7 +172,7 @@ describe("LLM extraction", () => {
     process.env.PREMISE_LLM_PROVIDER = "openai";
     const res = await compileDecisionArtifact({ rawContent: ADR_021 });
     expect(res.notice).toContain("OPENAI_API_KEY is not set");
-    expect(res.notice).toEndWith("Used the basic parser.");
+    expect(res.notice?.endsWith("Used the basic parser.")).toBe(true);
   });
 
   test("Anthropic Messages API with a JSON schema output format", async () => {

@@ -140,7 +140,7 @@ function describeError(err: unknown): string {
     const cause = (err as { cause?: unknown }).cause;
     message = err.status
       ? `Anthropic returned HTTP ${err.status}: ${err.message}`
-      : `${err.message}${cause instanceof Error ? ` (${cause.message})` : ""}`;
+      : `${err.message.replace(/\.$/, "")}${cause instanceof Error ? ` (${cause.message})` : ""}`;
   } else {
     message = err instanceof Error ? err.message : String(err);
   }
