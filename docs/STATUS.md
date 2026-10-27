@@ -1,4 +1,4 @@
-# Premise: current status and decisions
+# PremiseOps: current status and decisions
 
 Read this at the start of every session. Update it at the end of every session (state, decisions, lessons, next step). Dated decision lines are never edited; a later line supersedes an earlier one.
 

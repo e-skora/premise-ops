@@ -408,13 +408,13 @@ Maintaining our self-hosted GPU cluster and custom CUDA batching daemon is only 
 2. External API P95 transcription turnaround latency > 1200ms per 30-second audio chunk.
 
 ## Blast Radius if Invalidated
-Decommission the 8x L40S GPU Kubernetes node pool ($7,400/mo AWS EC2 G6e spend), delete \`examples/demo-repo/services/audio-batcher/cuda-worker.py\` (2,900 LOC), and route audio streams directly to the managed API endpoint.`,
+Decommission the 8x L40S GPU Kubernetes node pool ($7,400/mo AWS EC2 G6e spend), delete the custom CUDA batching daemon (2,900 LOC), and route audio streams directly to the managed API endpoint.`,
     precompiled: {
       title: "ADR-021: Dedicated L40S GPU Whisper Transcription Fleet",
       type: "ADR",
       targetLocus: "",
       blastRadius:
-        "Decommission 8x L40S GPU Kubernetes node pool ($7,400/mo AWS G6e spend) and delete 2,900 LOC custom CUDA batching daemon in examples/demo-repo/services/audio-batcher/cuda-worker.py.",
+        "Decommission 8x L40S GPU Kubernetes node pool ($7,400/mo AWS G6e spend) and delete the 2,900 LOC custom CUDA batching daemon.",
       logicCombinator: "ANY",
       premises: [
         {
@@ -468,13 +468,13 @@ This client-side WASM sync complexity is justified only while:
 2. Mobile client reconnect state-sync failure rate > 3.5% on cellular networks.
 
 ## Blast Radius
-Delete 3,100 LOC in \`apps/web/src/sync/lz4-delta-engine.ts\`, remove the 180KB \`lz4-wasm\` bundle dependency, and revert to standard React Query HTTP/3 cache invalidation.`,
+Delete the 3,100 LOC LZ4 delta sync engine, remove the 180KB \`lz4-wasm\` bundle dependency, and revert to standard React Query HTTP/3 cache invalidation.`,
     precompiled: {
       title: "PR #1104: Client-Side LZ4 IndexedDB Sync & Delta Patch Engine",
       type: "GITHUB_PR",
       targetLocus: "",
       blastRadius:
-        "Delete 3,100 LOC custom WASM delta sync engine in apps/web/src/sync/lz4-delta-engine.ts, drop 180KB lz4-wasm client bundle dependency, and revert to standard HTTP/3 cache invalidation.",
+        "Delete the 3,100 LOC custom WASM delta sync engine, drop 180KB lz4-wasm client bundle dependency, and revert to standard HTTP/3 cache invalidation.",
       logicCombinator: "ANY",
       premises: [
         {
@@ -536,7 +536,7 @@ Tear down 6x c7gn.large EC2 routers, remove FRR BGP keepalived daemon and PagerD
       type: "VENDOR_CONTRACT",
       targetLocus: "",
       blastRadius:
-        "Decommission 6x c7gn.large EC2 BGP routers, delete examples/demo-repo/infra/terraform/vpc-nat-bgp/main.tf (480 LOC) + FRR keepalived runbooks, and cut over to native S3/ECR VPC Gateway Endpoints.",
+        "Decommission 6x c7gn.large EC2 BGP routers, delete the BGP NAT Terraform module (480 LOC) and FRR keepalived runbooks, and cut over to native S3/ECR VPC Gateway Endpoints.",
       logicCombinator: "ANY",
       premises: [
         {

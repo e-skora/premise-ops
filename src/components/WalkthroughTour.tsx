@@ -69,7 +69,7 @@ export function WalkthroughTour({
       tag: "STEP 1 // ARCHITECTURAL CONTRACTS",
       title: "Living Architectural Contracts",
       description:
-        "Premise transforms static ADRs, GitHub PRs, and Strategy Memos into executable contracts. Instead of rotting in stale markdown files, each decision is checked against the telemetry its probes report.",
+        "PremiseOps transforms static ADRs, GitHub PRs, and Strategy Memos into executable contracts. Instead of rotting in stale markdown files, each decision is checked against the telemetry its probes report.",
       insight:
         "Static architecture docs lie. Each value here is labeled Live, Reported, Demo data or No value yet, so you always know what you are looking at.",
       preferredPlacement: "right",
@@ -112,7 +112,7 @@ export function WalkthroughTour({
       tag: "STEP 4 // MULTI-HOP CASCADES",
       title: "The Domino Effect & Blast Radius",
       description:
-        "Architectural decisions don't live in isolation. When ADR-014 breaks, Premise follows the declared dependencies and flags VENDOR-04 (the Redis Enterprise commit) as cascaded.",
+        "Architectural decisions don't live in isolation. When ADR-014 breaks, PremiseOps follows the declared dependencies and flags VENDOR-04 (the Redis Enterprise commit) as cascaded.",
       insight:
         "Multi-hop cascades surface vendor contracts and callers that depend on a broken decision.",
       preferredPlacement: "bottom",
@@ -123,9 +123,9 @@ export function WalkthroughTour({
       tag: "STEP 5 // CODEBASE GARBAGE COLLECTION",
       title: "Workspace Locus & Unified Teardown Diffs",
       description:
-        "Premise connects directly to real codebase files on disk (e.g. examples/demo-repo/packages/llm-gateway/src/semantic-cache.ts) and synthesizes git-apply ready unified teardown diffs to cleanly rip out the obsolete abstraction with 1-click apply or rollback.",
+        "PremiseOps connects directly to real codebase files on disk (e.g. examples/demo-repo/packages/llm-gateway/src/semantic-cache.ts) and synthesizes git-apply ready unified teardown diffs to cleanly rip out the obsolete abstraction with 1-click apply or rollback.",
       insight:
-        "Automated garbage collection for dead code: Premise doesn't just alert—it authors the deletion diff.",
+        "Automated garbage collection for dead code: PremiseOps doesn't just alert—it authors the deletion diff.",
       preferredPlacement: "top",
     },
     {
@@ -134,7 +134,7 @@ export function WalkthroughTour({
       tag: "STEP 6 // PR BOT & ALERTS",
       title: "Teardown PR Drafts & Kill-Switches",
       description:
-        "Premise drafts a teardown branch (premise/teardown-adr-014), a GitHub Pull Request with a review checklist, Slack Block Kit cards and PagerDuty Events v2 incidents. With real credentials it sends them; otherwise each one is a dry run that says nothing was sent.",
+        "PremiseOps drafts a teardown branch (premise/teardown-adr-014), a GitHub Pull Request with a review checklist, Slack Block Kit cards and PagerDuty Events v2 incidents. With real credentials it sends them; otherwise each one is a dry run that says nothing was sent.",
       insight:
         "In this public demo everything is a dry run. You get the PR body and the gh command to open it yourself.",
       preferredPlacement: "left",

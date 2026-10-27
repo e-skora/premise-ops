@@ -193,7 +193,7 @@ export function RepoScannerModal({
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-bold text-sm tracking-wide text-zinc-100">
-                  GITHUB REPOSITORY SCANNER // PREMISE ENGINE v2
+                  GITHUB REPOSITORY SCANNER // PREMISEOPS ENGINE v2
                 </span>
                 <span className="px-1.5 py-0.5 text-[10px] bg-sky-500/10 text-sky-300 border border-sky-500/30">
                   AUTO-EXTRACTOR

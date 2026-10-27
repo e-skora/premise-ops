@@ -1,4 +1,4 @@
-# Premise
+# PremiseOps
 
 Todo-or-die for assumptions: write down the numbers a decision depends on, check them against real data, and fail CI when one breaks.
 
@@ -15,8 +15,8 @@ Try the live demo: https://premise-ops.com/demo
 You need [Bun](https://bun.com/docs/installation) and [Node.js](https://nodejs.org/en/download) 22 or newer (Next.js runs on Node, and the local database uses Node's built-in SQLite).
 
 ```bash
-git clone https://github.com/e-skora/premise
-cd premise && bun install
+git clone https://github.com/e-skora/premise-ops
+cd premise-ops && bun install
 bun run dev
 ```
 
@@ -93,8 +93,8 @@ A premise is **BROKEN** when its value fails the comparison, and **DECAYING** wh
 | Probe | Where the value comes from |
 | --- | --- |
 | `HTTP_JSON_PATH` | Fetches a JSON URL and reads one field. |
-| `SQL_METRIC` | A read-only SQL query against Premise's own database. |
-| `PROMQL` | A real Prometheus server when one is connected in the app; otherwise a PromQL subset (`avg_over_time`, `rate`, `quantile_over_time`, label selectors, arithmetic) over Premise's own stored samples. |
+| `SQL_METRIC` | A read-only SQL query against PremiseOps's own database. |
+| `PROMQL` | A real Prometheus server when one is connected in the app; otherwise a PromQL subset (`avg_over_time`, `rate`, `quantile_over_time`, label selectors, arithmetic) over PremiseOps's own stored samples. |
 | `DATADOG_METRIC` | The Datadog Metric API, once Datadog is connected in the app. |
 | `WEBHOOK_INGEST` | Whatever you `POST` to `/api/webhooks/metric`. |
 | `WEB_SCRAPE_EXTRACT` | Accepted, but there is no scraper yet: it reads the last stored value. |
@@ -108,7 +108,7 @@ A premise is **BROKEN** when its value fails the comparison, and **DECAYING** wh
 Write your premises as `@premise` comments with a `probe` (and a `jsonPath` for JSON URLs), then add this as `.github/workflows/premise.yml`:
 
 ```yaml
-name: Premise
+name: PremiseOps
 on:
   push:
   pull_request:
@@ -121,7 +121,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/checkout@v7
         with:
-          repository: e-skora/premise
+          repository: e-skora/premise-ops
           path: .premise
       - uses: oven-sh/setup-bun@v2
         with:
@@ -135,7 +135,7 @@ jobs:
           bun .premise/bin/premise-cli.ts check
 ```
 
-It checks Premise out into `.premise/`, imports your comments into a fresh database (your decisions only, never the demo ones), runs every probe, and fails the build when a premise breaks or has no data. Use comments rather than ADR files here: an ADR line has no place to name a probe, so an imported ADR premise has no data until you connect a probe in the web app.
+It checks PremiseOps out into `.premise/`, imports your comments into a fresh database (your decisions only, never the demo ones), runs every probe, and fails the build when a premise breaks or has no data. Use comments rather than ADR files here: an ADR line has no place to name a probe, so an imported ADR premise has no data until you connect a probe in the web app.
 
 These exact steps were run by hand on a scratch repo with one `@premise` comment and a local price feed: a broken price exits `1`, a price that holds exits `0`, and a feed that is down or a comment with no probe exits `1` with "No data". This repo's own CI also runs the two commands on every push against a stand-in repo, [`examples/user-repo`](examples/user-repo). The two `actions/checkout` steps follow the [checkout docs](https://github.com/actions/checkout#checkout-multiple-repos-nested) but have not yet been run from another repo on GitHub.
 
@@ -147,7 +147,7 @@ This repo checks itself with [`.github/workflows/premise-ci.yml`](.github/workfl
 
 - No users yet. Built as an open-source tool and a portfolio piece.
 - In the demo, one premise is live: ADR-014 reads the real Claude Sonnet 5.5 input price from OpenRouter. Every other value is demo data until you connect your own sources. The UI labels each value Live, Reported, Demo data or No value yet.
-- PromQL without a connected Prometheus server is a subset that runs on Premise's own stored samples.
+- PromQL without a connected Prometheus server is a subset that runs on PremiseOps's own stored samples.
 - GitHub PRs, Slack and PagerDuty are drafted as dry runs unless you set tokens. A dry run never shows a PR number or link.
 - Language-model extraction in "Compile Decision" was tested with one real Anthropic call. OpenAI extraction has only been tested with a mocked response. Without a key, a basic parser is used and the app says so.
 - Not on npm. You run it from a clone, or check it out next to your repo in CI.

@@ -74,7 +74,7 @@ probe:
       color: "amber",
       headline: "Decisions don't live in isolation. Track the dominoes.",
       description:
-        "When an upstream architectural assumption collapses, Premise propagates the breach to every decision you declared as depending on it, such as vendor contracts and the services that call the old code.",
+        "When an upstream architectural assumption collapses, PremiseOps propagates the breach to every decision you declared as depending on it, such as vendor contracts and the services that call the old code.",
       metric: "Declared dependencies",
       metricLabel: "Transitive dependency mapping",
       codeSnippet: `// Upstream failure cascade
@@ -90,7 +90,7 @@ ADR-014 (Semantic Cache) -> [BREACHED]
       color: "cyan",
       headline: "Automated garbage collection for dead code.",
       description:
-        "Premise drafts a teardown branch, a git-apply ready diff for the named code location and a PR body with a review checklist. With a GitHub token it opens the PR through the GitHub API. Without one it is a dry run: you get the body and the gh command, and nothing is sent.",
+        "PremiseOps drafts a teardown branch, a git-apply ready diff for the named code location and a PR body with a review checklist. With a GitHub token it opens the PR through the GitHub API. Without one it is a dry run: you get the body and the gh command, and nothing is sent.",
       metric: "Dry run by default",
       metricLabel: "Opens PRs only with a token",
       codeSnippet: `Branch: premise/teardown-adr-014
@@ -108,7 +108,7 @@ Diff:
       color: "purple",
       headline: "Quantify the dollar cost of architectural inertia.",
       description:
-        "Every outdated architecture choice costs real money. Premise adds up the monthly cloud spend and maintenance hours you record for each decision into a balance sheet, so technical debt gets prioritized with finance.",
+        "Every outdated architecture choice costs real money. PremiseOps adds up the monthly cloud spend and maintenance hours you record for each decision into a balance sheet, so technical debt gets prioritized with finance.",
       metric: "Your numbers",
       metricLabel: "Computed from the spend you enter",
       codeSnippet: `FinOps Drag Ledger (demo data):
@@ -124,7 +124,7 @@ Total Realized Annual Savings: $31,200/yr`,
       color: "rose",
       headline: "Don't just delete old systems. Formulate the replacement.",
       description:
-        "When an ADR breaches, Premise drafts a replacement decision from built-in templates (for example, moving from Redis semantic caching to native prompt caching), with suggested probes you connect and sunset milestones.",
+        "When an ADR breaches, PremiseOps drafts a replacement decision from built-in templates (for example, moving from Redis semantic caching to native prompt caching), with suggested probes you connect and sunset milestones.",
       metric: "Template-based draft",
       metricLabel: "Replacement formulation",
       codeSnippet: `Synthesized Replacement ADR:
@@ -141,7 +141,7 @@ Probes: suggested, not connected`,
       color: "blue",
       headline: "Stress-test architecture against historical black swans.",
       description:
-        "Replay simulated price wars, vendor outages and latency spikes, or the history Premise has stored, across your portfolio. Premise computes resilience scores (0-100) and suggests safer threshold buffers. Scenarios are simulations, not forecasts.",
+        "Replay simulated price wars, vendor outages and latency spikes, or the history PremiseOps has stored, across your portfolio. PremiseOps computes resilience scores (0-100) and suggests safer threshold buffers. Scenarios are simulations, not forecasts.",
       metric: "0-100 score",
       metricLabel: "From simulated scenarios",
       codeSnippet: `Scenario Replay: "LLM Price War (-60% step cut)"
@@ -178,7 +178,7 @@ Optimal Threshold Adjustment: +14% safety buffer`,
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-base font-bold font-mono tracking-wider text-zinc-100 group-hover:text-cyan-300 transition-colors">
-                  PREMISE
+                  PREMISEOPS
                 </span>
                 <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-700/60 text-zinc-400">
                   v3.0
@@ -199,13 +199,13 @@ Optimal Threshold Adjustment: +14% safety buffer`,
               Live Simulator
             </a>
             <a href="#paradigm" className="hover:text-zinc-100 transition-colors">
-              The Old Way vs Premise
+              The Old Way vs PremiseOps
             </a>
             <a href="#cli" className="hover:text-zinc-100 transition-colors">
               CLI & CI/CD
             </a>
             <a
-              href="https://github.com/e-skora/premise"
+              href="https://github.com/e-skora/premise-ops"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-zinc-100 transition-colors flex items-center gap-1"
@@ -219,7 +219,7 @@ Optimal Threshold Adjustment: +14% safety buffer`,
             <Link
               href="/demo?tour=true"
               className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-zinc-900 hover:bg-zinc-800 text-cyan-300 hover:text-cyan-200 border border-cyan-500/40 hover:border-cyan-400 font-mono text-xs transition-colors shadow-sm"
-              title="Start 60-second interactive guided walkthrough tour of Premise"
+              title="Start 60-second interactive guided walkthrough tour of PremiseOps"
             >
               <Compass className="w-3.5 h-3.5 text-cyan-400" />
               <span>Take Guided Tour (60s)</span>
@@ -262,7 +262,7 @@ Optimal Threshold Adjustment: +14% safety buffer`,
 
         {/* Subtitle */}
         <p className="mt-6 text-base sm:text-lg text-zinc-400 max-w-3xl mx-auto leading-relaxed">
-          Stop paying for dead architecture. Premise turns ADRs, strategy memos, and vendor
+          Stop paying for dead architecture. PremiseOps turns ADRs, strategy memos, and vendor
           contracts into executable assertions, and drafts teardown PRs when load-bearing
           assumptions break. PRs open on GitHub only when you add a token.
         </p>
@@ -326,7 +326,7 @@ Optimal Threshold Adjustment: +14% safety buffer`,
             Simulate an Upstream Price Breach in Real Time
           </h2>
           <p className="text-sm text-zinc-400 max-w-2xl mx-auto mt-2">
-            Drag the slider to alter upstream token pricing and see how Premise automatically detects
+            Drag the slider to alter upstream token pricing and see how PremiseOps automatically detects
             decay, invalidates ADR-014, calculates the multi-hop cascade, and drafts the teardown diff.
           </p>
         </div>
@@ -519,7 +519,7 @@ Optimal Threshold Adjustment: +14% safety buffer`,
             The Complete Lifecycle of Architectural Decisions
           </h2>
           <p className="mt-3 text-sm sm:text-base text-zinc-400">
-            From natural language ingestion to drafted code removal, Premise replaces forgotten
+            From natural language ingestion to drafted code removal, PremiseOps replaces forgotten
             markdown logs with checked assertions. One demo premise is live; the rest use demo data
             until you connect your own sources.
           </p>
@@ -592,7 +592,7 @@ Optimal Threshold Adjustment: +14% safety buffer`,
             Paradigm Shift
           </span>
           <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-zinc-100 mt-2">
-            Static Markdown in Git vs. The Executable Premise Engine
+            Static Markdown in Git vs. The Executable PremiseOps Engine
           </h2>
           <p className="mt-3 text-sm text-zinc-400">
             Why high-growth engineering teams ditch static architecture records for continuous
@@ -643,7 +643,7 @@ Optimal Threshold Adjustment: +14% safety buffer`,
           <div className="bg-gradient-to-br from-emerald-950/30 via-zinc-900/60 to-cyan-950/30 border border-emerald-500/40 rounded-xl p-6 sm:p-8 space-y-5 shadow-[0_0_30px_rgba(16,185,129,0.1)]">
             <div className="flex items-center gap-2 text-emerald-400 font-mono font-bold text-sm">
               <CheckCircle2 className="w-4 h-4" />
-              <span>THE PREMISE WAY (CI/CD for Decisions)</span>
+              <span>THE PREMISEOPS WAY (CI/CD for Decisions)</span>
             </div>
             <ul className="space-y-4 text-xs font-mono text-zinc-200 leading-relaxed">
               <li className="flex items-start gap-2">
@@ -651,7 +651,7 @@ Optimal Threshold Adjustment: +14% safety buffer`,
                 <span>
                   <strong>Telemetry assertions:</strong> Natural language compiled into assertions
                   with suggested probes you connect to a real Prometheus server or Datadog, SQL, any
-                  JSON URL, or a PromQL subset that runs on Premise&apos;s own stored samples.
+                  JSON URL, or a PromQL subset that runs on PremiseOps&apos;s own stored samples.
                 </span>
               </li>
               <li className="flex items-start gap-2">
@@ -688,7 +688,7 @@ Optimal Threshold Adjustment: +14% safety buffer`,
               <Terminal className="w-5 h-5 text-cyan-400" />
               <div>
                 <h3 className="text-base font-bold font-mono text-zinc-100">
-                  Premise Executable CLI & GitHub Actions CI
+                  PremiseOps Executable CLI & GitHub Actions CI
                 </h3>
                 <p className="text-xs font-mono text-zinc-400">
                   Embed premise assertions in pull requests and fail the build on broken load-bearing
@@ -717,7 +717,7 @@ Optimal Threshold Adjustment: +14% safety buffer`,
               ┌────────────────────────────────────────────────────────────────────────┐
             </div>
             <div className="text-zinc-300">
-              │ PREMISE CI/CD ENGINE v3.0 // EVALUATING PORTFOLIO ASSERTIONS          │
+              │ PREMISEOPS CI/CD ENGINE v3.0 // EVALUATING PORTFOLIO ASSERTIONS       │
             </div>
             <div className="text-zinc-400">
               ├────────────────────────────────────────────────────────────────────────┤
@@ -765,7 +765,7 @@ Optimal Threshold Adjustment: +14% safety buffer`,
               <span>Launch Live Interactive Demo</span>
             </Link>
             <a
-              href="https://github.com/e-skora/premise"
+              href="https://github.com/e-skora/premise-ops"
               target="_blank"
               rel="noopener noreferrer"
               className="w-full sm:w-auto px-7 py-4 rounded bg-zinc-900 border border-zinc-700 text-zinc-300 font-mono text-sm hover:bg-zinc-800 transition-colors flex items-center justify-center gap-2"
@@ -788,7 +788,7 @@ Optimal Threshold Adjustment: +14% safety buffer`,
             <div className="w-5 h-5 rounded bg-zinc-900 border border-zinc-800 flex items-center justify-center">
               <Radio className="w-3 h-3 text-cyan-400" />
             </div>
-            <span className="text-zinc-300 font-bold">PREMISE</span>
+            <span className="text-zinc-300 font-bold">PREMISEOPS</span>
             <span>// premise-ops.com</span>
           </div>
 
@@ -799,7 +799,7 @@ Optimal Threshold Adjustment: +14% safety buffer`,
               Live Demo
             </Link>
             <a
-              href="https://github.com/e-skora/premise"
+              href="https://github.com/e-skora/premise-ops"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-cyan-400 transition-colors"
