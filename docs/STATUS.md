@@ -8,7 +8,7 @@ Read this at the start of every session. Update it at the end of every session (
 - Done: Step 1 make it safe (PR #1), Step 2 cut it down (PR #1), Step 3 make it honest (PR #2), Step 4 README and license (PR #3), CI for other repos (PR #4), Compile Decision code location fix (PR #5), Step 5 rename and go public (PR #7).
 - Sample and seed text names no made-up files. `src/__tests__/sample-paths.test.ts` fails if it ever does again.
 - Safety scan before going public (all 69 commits, every branch): no secrets, no `.env`, `premise.db` or `.handoffs/` file ever committed, no emails other than commit author lines, no phone numbers or addresses. Done with `git grep` over every commit, because running the gitleaks binary was blocked by Claude Code's safety system. Only personal detail found: the Mac user name in tool paths (`/Users/frank/...`) in `AGENTS.md` history and one ship log line. Not a secret, left as is.
-- Branches: `main` and `launch/premiseops` (merged, kept: not approved for deletion). The 4 old merged branches were deleted locally and on GitHub with Elias's OK.
+- Branches: only `main`. All merged branches were deleted locally and on GitHub with Elias's OK (see the 2026-10-27 branch decisions).
 - Example repo: https://github.com/e-skora/premise-ops-example (public). One `@premise` comment on the real OpenRouter price and the README workflow copied exactly. First commit c5ed713 breaks the premise: CI red, run 40486128905, `check` exit 1 with 1 BROKEN. Second commit 7293bb8 holds: CI green, run 40486193060, 1 VALID. This proves the README's two `actions/checkout` steps from another repo on GitHub. The README links it.
 - Tests: 128 pass. `scripts/check-test-isolation.sh` passes.
 - The project has no users yet. A Show HN draft is ready in `.handoffs/show-hn-draft.md` (local only).
@@ -29,6 +29,7 @@ Premise goes forward as a slim, honest open-source tool and portfolio piece, not
 - 2026-10-27: Name: "sure that works". The brand is PremiseOps, the repo is `e-skora/premise-ops`, and the `@premise` comments and the `premise` command stay. Supersedes the open naming question in the 2026-10-27 next steps.
 - 2026-10-27: Example repo: "Yes, create the public repo e-skora/premise-ops-example, push both versions, and link it from the README and the Show HN draft." Done.
 - 2026-10-27: Branches: "2 sure whatever" (delete the 4 merged branches `docs/readme-license`, `ci/other-repos`, `fix/compile-code-location`, `docs/log-v8`). Done. No other branch was approved for deletion.
+- 2026-10-27: Branches: "yes" (delete the 3 merged branches `launch/premiseops`, `docs/log-v9`, `docs/example-repo`). Done: deleted locally and on GitHub after confirming each was merged into main.
 
 ## Next steps (in order)
 1. **Elias posts the Show HN** from `.handoffs/show-hn-draft.md` (it links the repo, the demo and the example repo).
