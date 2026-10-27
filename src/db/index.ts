@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import type { DatabaseSync } from "node:sqlite";
@@ -67,6 +68,7 @@ import {
   savedSourceLabel,
 } from "@/lib/live-feeds";
 import { loadSavedFeed, savedFeedDir } from "@/lib/saved-feeds";
+import { resolveWorkspaceRoot } from "@/lib/workspace-root";
 
 /**
  * Database file location. PREMISE_DB_PATH wins; the ./premise.db fallback is
@@ -106,12 +108,21 @@ function createSqliteInstance(filePath: string): DatabaseSync {
   return new NodeDatabaseSync(filePath);
 }
 
-function openInitializedDb(filePath: string): DatabaseSync {
+/**
+ * Demo decisions belong only in a demo database: a public demo sandbox, or a
+ * workspace that holds the bundled demo repo (this repo and the live site).
+ * A user's own repo starts empty and only holds the decisions it imports.
+ */
+export function workspaceHasDemoRepo(root: string = resolveWorkspaceRoot()): boolean {
+  return fs.existsSync(path.join(root, "examples", "demo-repo"));
+}
+
+function openInitializedDb(filePath: string, seedDemo: boolean): DatabaseSync {
   const db = createSqliteInstance(filePath);
   db.exec("PRAGMA journal_mode = WAL;");
   db.exec("PRAGMA foreign_keys = ON;");
   initSchema(db);
-  seedIfEmpty(db);
+  if (seedDemo) seedIfEmpty(db);
   return db;
 }
 
@@ -121,16 +132,20 @@ export function getDb(): DatabaseSync {
     return openDatabaseAt(sandboxDbPath);
   }
   if (!global.__premiseDb) {
-    global.__premiseDb = openInitializedDb(resolveDbPath());
+    global.__premiseDb = openInitializedDb(resolveDbPath(), workspaceHasDemoRepo());
   }
   return global.__premiseDb;
 }
 
 /**
- * Opens (or reuses) a schema-initialized, seeded database at an explicit path.
- * Used for public demo sandboxes and their seed template.
+ * Opens (or reuses) a schema-initialized database at an explicit path, seeded
+ * with the demo decisions unless `seedDemo` is false. Used for public demo
+ * sandboxes and their seed template.
  */
-export function openDatabaseAt(filePath: string): DatabaseSync {
+export function openDatabaseAt(
+  filePath: string,
+  options: { seedDemo?: boolean } = {}
+): DatabaseSync {
   const cache = (global.__premiseSandboxDbs ??= new Map());
   const cached = cache.get(filePath);
   if (cached) {
@@ -138,7 +153,7 @@ export function openDatabaseAt(filePath: string): DatabaseSync {
     cache.set(filePath, cached);
     return cached;
   }
-  const db = openInitializedDb(filePath);
+  const db = openInitializedDb(filePath, options.seedDemo ?? true);
   cache.set(filePath, db);
   while (cache.size > MAX_OPEN_SANDBOX_DBS) {
     const oldestPath = cache.keys().next().value as string;
@@ -641,7 +656,9 @@ export function resetDatabaseToSeed(): DecisionArtifactRecord[] {
   db.exec("DELETE FROM Premise;");
   db.exec("DELETE FROM DecisionArtifact;");
   db.exec("DELETE FROM TelemetryMetric;");
-  insertSeedData(db);
+  if (getActiveSandboxDbPath() || workspaceHasDemoRepo()) {
+    insertSeedData(db);
+  }
   return getAllArtifactsWithRelations();
 }
 

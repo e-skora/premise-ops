@@ -249,7 +249,8 @@ describe("Horizon E: Architecture Balance Sheet, Inefficiency Drag Ledger & Auto
 
       const adr015InDb = afterArts.find((a) => a.id === "art-adr-015")!;
       expect(adr015InDb).toBeDefined();
-      expect(adr015InDb.status).toBe("HEALTHY");
+      // A brand-new replacement has no measured values yet
+      expect(adr015InDb.status).toBe("NO_DATA");
       expect(adr015InDb.premises.length).toBeGreaterThanOrEqual(2);
 
       // Step 4: Verify FinOps Ledger reflects eliminated waste and savings

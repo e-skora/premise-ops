@@ -35,6 +35,7 @@ import {
   Compass,
 } from "lucide-react";
 import {
+  ARTIFACT_STATUS_LABELS,
   ArtifactStatus,
   ArtifactType,
   DecisionArtifactRecord,
@@ -1193,8 +1194,8 @@ export function PremiseControlPlane({
               ))}
             </div>
 
-            <div className="grid grid-cols-4 gap-1 pt-0.5">
-              {(["ALL", "HEALTHY", "AT_RISK", "INVALIDATED"] as const).map(
+            <div className="grid grid-cols-3 gap-1 pt-0.5">
+              {(["ALL", "HEALTHY", "AT_RISK", "INVALIDATED", "NO_DATA"] as const).map(
                 (st) => (
                   <button
                     key={st}
@@ -1206,7 +1207,7 @@ export function PremiseControlPlane({
                         : "bg-zinc-950 text-zinc-500 border-zinc-800/80 hover:text-zinc-300"
                     }`}
                   >
-                    {st}
+                    {st === "ALL" ? st : ARTIFACT_STATUS_LABELS[st]}
                   </button>
                 )
               )}
@@ -1222,6 +1223,8 @@ export function PremiseControlPlane({
                   ? "bg-rose-500/20 text-rose-300 border-rose-500/50"
                   : art.status === "AT_RISK"
                   ? "bg-amber-500/20 text-amber-300 border-amber-500/50"
+                  : art.status === "NO_DATA"
+                  ? "bg-zinc-800/80 text-zinc-400 border-zinc-600"
                   : "bg-emerald-500/15 text-emerald-300 border-emerald-500/40";
 
               const downstreamCount = art.downstreamDependentIds?.length || 0;
@@ -1258,7 +1261,7 @@ export function PremiseControlPlane({
                       {art.status === "INVALIDATED" && (
                         <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-ping" />
                       )}
-                      {art.status}
+                      {ARTIFACT_STATUS_LABELS[art.status] ?? art.status}
                     </span>
                   </div>
 
@@ -1402,10 +1405,14 @@ export function PremiseControlPlane({
                         ? "bg-rose-500/20 text-rose-300 border-rose-500/50"
                         : selectedArtifact.status === "AT_RISK"
                         ? "bg-amber-500/20 text-amber-300 border-amber-500/50"
+                        : selectedArtifact.status === "NO_DATA"
+                        ? "bg-zinc-800/80 text-zinc-400 border-zinc-600"
                         : "bg-emerald-500/15 text-emerald-300 border-emerald-500/40"
                     }`}
                   >
-                    ARTIFACT STATUS // {selectedArtifact.status}
+                    ARTIFACT STATUS //{" "}
+                    {ARTIFACT_STATUS_LABELS[selectedArtifact.status] ??
+                      selectedArtifact.status}
                   </span>
                 </div>
 
