@@ -52,9 +52,8 @@ export function CompilerModal({
   const [overrideType, setOverrideType] = useState<ArtifactType>(
     templates[0]?.type || "ADR"
   );
-  const [overrideLocus, setOverrideLocus] = useState<string>(
-    templates[0]?.targetLocus || ""
-  );
+  // Starts empty: a path is only saved when the document or the user names one
+  const [overrideLocus, setOverrideLocus] = useState<string>("");
 
   const [previewCompiled, setPreviewCompiled] =
     useState<CompiledArtifactOutput | null>(templates[0]?.precompiled || null);
@@ -83,7 +82,6 @@ export function CompilerModal({
   const handleLoadCustomExample = () => {
     setSelectedTemplateId("");
     const customDoc = `# ADR-029: Custom Redis Read-Through Caching Layer
-**Locus:** \`src/services/cache-router.ts:L42-110\`
 
 ## Context
 We maintain this custom Redis caching layer because Upstream API X takes >800ms and costs $15/1M tokens. Additionally, acquisition channel Y is viable as long as CAC stays under $45.
@@ -93,7 +91,7 @@ Delete 1,600 LOC Redis read-through cache in \`src/services/cache-router.ts:L42-
     setRawContent(customDoc);
     setOverrideTitle("ADR-029: Custom Redis Read-Through Caching Layer");
     setOverrideType("ADR");
-    setOverrideLocus("src/services/cache-router.ts:L42-110");
+    setOverrideLocus("");
     setPreviewCompiled(null);
     setError(null);
   };

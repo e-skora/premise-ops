@@ -396,9 +396,8 @@ export const COMPILER_TEMPLATES: CompilerTemplate[] = [
     badge: "ADR",
     title: "ADR-021: Dedicated L40S GPU Whisper Transcription Fleet",
     type: "ADR",
-    targetLocus: "examples/demo-repo/infra/k8s/gpu-whisper-pool/deployment.yaml:L1-140",
+    targetLocus: "",
     rawContent: `# ADR-021: Dedicated L40S GPU Whisper Transcription Fleet
-**Locus:** \`examples/demo-repo/infra/k8s/gpu-whisper-pool/deployment.yaml:L1-140\`
 
 ## Context
 We operate an autoscaled Kubernetes node pool of 8x NVIDIA L40S GPUs running TensorRT-LLM Whisper-Large-v3 to transcribe enterprise meeting audio streams.
@@ -413,7 +412,7 @@ Decommission the 8x L40S GPU Kubernetes node pool ($7,400/mo AWS EC2 G6e spend),
     precompiled: {
       title: "ADR-021: Dedicated L40S GPU Whisper Transcription Fleet",
       type: "ADR",
-      targetLocus: "examples/demo-repo/infra/k8s/gpu-whisper-pool/deployment.yaml:L1-140",
+      targetLocus: "",
       blastRadius:
         "Decommission 8x L40S GPU Kubernetes node pool ($7,400/mo AWS G6e spend) and delete 2,900 LOC custom CUDA batching daemon in examples/demo-repo/services/audio-batcher/cuda-worker.py.",
       logicCombinator: "ANY",
@@ -457,9 +456,8 @@ Decommission the 8x L40S GPU Kubernetes node pool ($7,400/mo AWS EC2 G6e spend),
     badge: "GITHUB_PR",
     title: "PR #1104: Client-Side LZ4 IndexedDB Sync & Delta Patch Engine",
     type: "GITHUB_PR",
-    targetLocus: "apps/web/src/sync/lz4-delta-engine.ts:L18-390",
+    targetLocus: "",
     rawContent: `# PR #1104: Client-Side LZ4 IndexedDB Sync & Delta Patch Engine
-**Locus:** \`apps/web/src/sync/lz4-delta-engine.ts:L18-390\`
 
 ## Summary
 Adds a WebAssembly LZ4 binary diffing worker and IndexedDB mutation log to avoid full state hydration over GraphQL subscriptions.
@@ -474,7 +472,7 @@ Delete 3,100 LOC in \`apps/web/src/sync/lz4-delta-engine.ts\`, remove the 180KB 
     precompiled: {
       title: "PR #1104: Client-Side LZ4 IndexedDB Sync & Delta Patch Engine",
       type: "GITHUB_PR",
-      targetLocus: "apps/web/src/sync/lz4-delta-engine.ts:L18-390",
+      targetLocus: "",
       blastRadius:
         "Delete 3,100 LOC custom WASM delta sync engine in apps/web/src/sync/lz4-delta-engine.ts, drop 180KB lz4-wasm client bundle dependency, and revert to standard HTTP/3 cache invalidation.",
       logicCombinator: "ANY",
@@ -520,9 +518,8 @@ Delete 3,100 LOC in \`apps/web/src/sync/lz4-delta-engine.ts\`, remove the 180KB 
     title:
       "VENDOR-09: Self-Managed EC2 BGP NAT Router Fleet vs AWS Managed NAT",
     type: "VENDOR_CONTRACT",
-    targetLocus: "examples/demo-repo/infra/terraform/vpc-nat-bgp/main.tf:L1-210",
+    targetLocus: "",
     rawContent: `# VENDOR-09: Self-Managed EC2 BGP NAT Router Fleet
-**Locus:** \`examples/demo-repo/infra/terraform/vpc-nat-bgp/main.tf:L1-210\`
 
 ## Context
 To avoid AWS Managed NAT Gateway per-GB data processing charges during cross-AZ S3 & ECR pulls, we maintain a custom fleet of 6 c7gn.large EC2 instances running FRR BGP failover scripts.
@@ -537,7 +534,7 @@ Tear down 6x c7gn.large EC2 routers, remove FRR BGP keepalived daemon and PagerD
       title:
         "VENDOR-09: Self-Managed EC2 BGP NAT Router Fleet vs AWS Managed NAT",
       type: "VENDOR_CONTRACT",
-      targetLocus: "examples/demo-repo/infra/terraform/vpc-nat-bgp/main.tf:L1-210",
+      targetLocus: "",
       blastRadius:
         "Decommission 6x c7gn.large EC2 BGP routers, delete examples/demo-repo/infra/terraform/vpc-nat-bgp/main.tf (480 LOC) + FRR keepalived runbooks, and cut over to native S3/ECR VPC Gateway Endpoints.",
       logicCombinator: "ANY",
