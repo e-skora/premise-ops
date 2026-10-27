@@ -744,7 +744,9 @@ export function TimeMachineModal({
                           : "text-rose-400"
                       }`}
                     >
-                      {activePremise?.resilienceScore || 0}
+                      {activePremise && !activePremise.hasData
+                        ? "No data"
+                        : activePremise?.resilienceScore || 0}
                     </span>
                     <span className="text-zinc-500 text-sm font-bold">/ 100</span>
                     <span

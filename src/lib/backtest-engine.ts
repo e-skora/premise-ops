@@ -650,6 +650,7 @@ export function runBacktestSimulation(
   let earliestBreachingPremiseId: string | null = null;
   let totalResilienceSum = 0;
   let totalPremiseCount = 0;
+  let scoredPremiseCount = 0;
 
   for (const art of targetArtifacts) {
     const artPremiseResults: PremiseBacktestResult[] = [];
@@ -676,14 +677,20 @@ export function runBacktestSimulation(
       const minSim = simVals.length ? Math.min(...simVals) : thresholdNum;
       const maxSim = simVals.length ? Math.max(...simVals) : thresholdNum;
 
-      const thresholdAdvice = calculateRecommendedThreshold({
-        operator: p.operator,
-        currentThreshold: p.thresholdValue,
-        minSimulated: minSim,
-        maxSimulated: maxSim,
-        decayWarningMargin: p.decayWarningMargin,
-        unit: p.unit,
-      });
+      const hasData = simVals.length > 0;
+      const thresholdAdvice = hasData
+        ? calculateRecommendedThreshold({
+            operator: p.operator,
+            currentThreshold: p.thresholdValue,
+            minSimulated: minSim,
+            maxSimulated: maxSim,
+            decayWarningMargin: p.decayWarningMargin,
+            unit: p.unit,
+          })
+        : {
+            recommendedThreshold: p.thresholdValue,
+            recommendedThresholdAdjustment: "No data to replay yet",
+          };
 
       if (metrics.breachStep !== null) {
         if (
@@ -695,7 +702,11 @@ export function runBacktestSimulation(
         }
       }
 
-      totalResilienceSum += metrics.resilienceScore;
+      // Premises with no data do not count toward any score
+      if (hasData) {
+        totalResilienceSum += metrics.resilienceScore;
+        scoredPremiseCount += 1;
+      }
 
       artPremiseResults.push({
         premiseId: p.id,
@@ -705,6 +716,7 @@ export function runBacktestSimulation(
         operator: p.operator,
         thresholdValue: p.thresholdValue,
         initialValue: String(p.currentValue ?? "").trim() ? Number(p.currentValue) : null,
+        hasData,
         unit: p.unit,
         steps: snaps,
         survivalRatePct: metrics.survivalRatePct,
@@ -721,11 +733,12 @@ export function runBacktestSimulation(
       });
     }
 
+    const scoredPremises = artPremiseResults.filter((p) => p.hasData);
     const avgArtResilience =
-      artPremiseResults.length > 0
+      scoredPremises.length > 0
         ? Math.round(
-            artPremiseResults.reduce((acc, p) => acc + p.resilienceScore, 0) /
-              artPremiseResults.length
+            scoredPremises.reduce((acc, p) => acc + p.resilienceScore, 0) /
+              scoredPremises.length
           )
         : 100;
 
@@ -752,8 +765,8 @@ export function runBacktestSimulation(
   }
 
   const avgResilience =
-    totalPremiseCount > 0
-      ? Math.round(totalResilienceSum / totalPremiseCount)
+    scoredPremiseCount > 0
+      ? Math.round(totalResilienceSum / scoredPremiseCount)
       : 100;
 
   const portfolioRating =

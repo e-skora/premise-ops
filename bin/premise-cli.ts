@@ -616,8 +616,9 @@ async function runBacktestCommand(args: string[]) {
           ? ANSI.amber
           : ANSI.rose;
 
-      const breachStr =
-        p.breachStep !== null
+      const breachStr = !p.hasData
+        ? `${ANSI.dim}NO DATA${ANSI.reset}`
+        : p.breachStep !== null
           ? `${ANSI.rose}Step ${p.breachStep} (${p.breachValue}${unitShort})${ANSI.reset}`
           : `${ANSI.emerald}SURVIVED${ANSI.reset}`;
 
@@ -634,13 +635,15 @@ async function runBacktestCommand(args: string[]) {
           boundStr,
           cols.bound
         )} │ ${padCell(
-          `${resColor}${ANSI.bold}${p.resilienceScore}/100 (${p.resilienceRating.slice(
-            0,
-            4
-          )})${ANSI.reset}`,
+          p.hasData
+            ? `${resColor}${ANSI.bold}${p.resilienceScore}/100 (${p.resilienceRating.slice(
+                0,
+                4
+              )})${ANSI.reset}`
+            : `${ANSI.dim}not scored${ANSI.reset}`,
           cols.resilience
         )} │ ${padCell(
-          `${p.survivalRatePct}%`,
+          p.hasData ? `${p.survivalRatePct}%` : "n/a",
           cols.survival,
           "right"
         )} │ ${padCell(breachStr, cols.breach)}`
@@ -699,6 +702,8 @@ async function runBacktestCommand(args: string[]) {
             ANSI.reset
           }`
         );
+      } else if (!p.hasData) {
+        parts.push(`${ANSI.dim}[no data to replay yet]${ANSI.reset}`);
       } else {
 
         parts.push(
@@ -735,7 +740,11 @@ async function runBacktestCommand(args: string[]) {
   );
   for (const art of report.artifacts) {
     for (const p of art.premises) {
-      if (p.recommendedThreshold !== p.thresholdValue) {
+      if (!p.hasData) {
+        console.log(
+          `  • ${ANSI.bold}${p.variableName}${ANSI.reset}: ${ANSI.dim}no data to replay yet, no advice${ANSI.reset}`
+        );
+      } else if (p.recommendedThreshold !== p.thresholdValue) {
         console.log(
           `  • ${ANSI.bold}${p.variableName}${ANSI.reset}: ${ANSI.amber}${p.recommendedThresholdAdjustment}${ANSI.reset} (was: ${OPERATOR_SYMBOLS[p.operator]} ${p.thresholdValue})`
         );

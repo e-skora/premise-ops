@@ -393,6 +393,8 @@ export interface PremiseBacktestResult {
   thresholdValue: string;
   /** Null when the premise has no reported value */
   initialValue: number | null;
+  /** False when there was nothing to replay; scores and advice are then meaningless */
+  hasData: boolean;
   unit: string;
   steps: ReplayStepSnapshot[];
   survivalRatePct: number;
