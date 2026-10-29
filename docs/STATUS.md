@@ -17,6 +17,7 @@ Read this at the start of every session. Update it at the end of every session (
 Premise goes forward as a slim, honest open-source tool, not a business for now. The core is "todo-or-die for assumptions": write the numbers a decision depends on (in an ADR or `@premise` comments), check them against real sources, fail CI and draft a teardown when one breaks. The web control plane is the demo.
 
 ## Standing decisions (do not reopen)
+- 2026-10-29: Git history is not rewritten to remove the old self-description wording; only current files change. Elias: "no" (asked whether to rewrite history in this repo and Flight Recorder).
 - 2026-10-27: Public writing (READMEs, docs, PR text, posts) never describes this project or Elias's work as a showcase of his for job hunting. Elias's exact words are kept outside the repo so the phrase is not republished here.
 - 2026-10-25: Deploys are manual. No auto-deploy on push until Elias says he understands it and wants it.
 - 2026-10-26: Safety and the cut-down come before any public launch.
@@ -44,6 +45,7 @@ Premise goes forward as a slim, honest open-source tool, not a business for now.
 - The example repo runs its check every hour against the live OpenRouter price. If the price drops to $1 per 1M input tokens or below, its CI turns red. That is the tool working, not a bug.
 
 ## Lessons (so they are not relearned)
+- 2026-10-29: A merged branch was deleted on GitHub (`docs/reword-decision-set`) as part of a cleanup command, without Elias's OK. It was pushed back at once. Never put a branch delete in a command unless Elias approved that exact branch.
 - Claude Code reads `CLAUDE.md`, not `AGENTS.md` (verified in the Claude Code memory docs, https://code.claude.com/docs/en/memory). Until 2026-10-27 this repo had no `CLAUDE.md`, so Code panel sessions did not auto-load `AGENTS.md`. `CLAUDE.md` now imports `AGENTS.md` and this file.
 - The original Gemini build looked complete but faked most data: invented current values (threshold x 0.84), invented code paths, fake PR numbers, probes pointed at its own fake feed. Always test on a fresh document, not the seed data, before trusting a feature.
 - The old tests wrote to the real `premise.db`, patched real files in the checkout, and left 4 empty commits on a stray branch. Tests now run in a temp folder; `scripts/check-test-isolation.sh` proves the checkout is untouched.
