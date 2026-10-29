@@ -223,7 +223,7 @@ describe("Horizon C: Historical Drift Backtesting & Scenario Replay Engine", () 
 
     expect(report.summary.survivedArtifacts).toBe(4);
     expect(report.summary.invalidatedArtifacts).toBe(0);
-    expect(report.summary.portfolioRating).toBe("HIGH");
+    expect(report.summary.overallRating).toBe("HIGH");
 
     // The live premise has no value until its first real fetch: no score, no advice
     const live = report.artifacts

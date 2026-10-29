@@ -767,9 +767,9 @@ async function runBacktestCommand(args: string[]) {
     `${ANSI.bold}SUMMARY:${ANSI.reset} ${report.summary.totalArtifacts} Decisions | ` +
       `${report.summary.totalPremises} Premises | ` +
       `Avg Resilience: ${
-        report.summary.portfolioRating === "HIGH"
+        report.summary.overallRating === "HIGH"
           ? `${ANSI.emerald}${report.summary.averageResilienceScore}/100 (HIGH)${ANSI.reset}`
-          : report.summary.portfolioRating === "MODERATE"
+          : report.summary.overallRating === "MODERATE"
           ? `${ANSI.amber}${report.summary.averageResilienceScore}/100 (MODERATE)${ANSI.reset}`
           : `${ANSI.rose}${report.summary.averageResilienceScore}/100 (BRITTLE)${ANSI.reset}`
       } | ` +

@@ -448,7 +448,7 @@ export interface BacktestReport {
     invalidatedArtifacts: number;
     cascadedArtifacts: number;
     averageResilienceScore: number;
-    portfolioRating: "HIGH" | "MODERATE" | "BRITTLE";
+    overallRating: "HIGH" | "MODERATE" | "BRITTLE";
     earliestBreachStep: number | null;
     earliestBreachingPremiseId: string | null;
   };
