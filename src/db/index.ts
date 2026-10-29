@@ -2547,7 +2547,7 @@ export function getMaskedConnectorSettings(): ConnectorMaskedSetting[] {
 }
 
 /**
- * Returns portfolio-wide FinOps Ledger Drag & Balance Sheet Summary.
+ * Returns decision-wide FinOps Ledger Drag & Balance Sheet Summary.
  */
 export function getFinOpsLedger(
   options?: FinOpsOptions

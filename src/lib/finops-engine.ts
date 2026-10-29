@@ -67,7 +67,7 @@ export function calculateArtifactDrag(
 }
 
 /**
- * Calculates portfolio-wide FinOps Ledger Drag & Balance Sheet Summary.
+ * Calculates decision-wide FinOps Ledger Drag & Balance Sheet Summary.
  * Computes ongoing monthly burn of broken/decaying premises, daily drag,
  * and cumulative annual savings of applied teardowns.
  */

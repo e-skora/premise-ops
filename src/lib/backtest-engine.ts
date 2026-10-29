@@ -769,7 +769,7 @@ export function runBacktestSimulation(
       ? Math.round(totalResilienceSum / scoredPremiseCount)
       : 100;
 
-  const portfolioRating =
+  const overallRating =
     avgResilience >= 80 ? "HIGH" : avgResilience >= 50 ? "MODERATE" : "BRITTLE";
 
   const invalidatedCount = artifactResults.filter(
@@ -792,7 +792,7 @@ export function runBacktestSimulation(
       invalidatedArtifacts: invalidatedCount,
       cascadedArtifacts: cascadedCount,
       averageResilienceScore: avgResilience,
-      portfolioRating,
+      overallRating,
       earliestBreachStep,
       earliestBreachingPremiseId,
     },
