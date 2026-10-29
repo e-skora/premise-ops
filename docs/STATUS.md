@@ -2,8 +2,8 @@
 
 Read this at the start of every session. Update it at the end of every session (state, decisions, lessons, next step). Dated decision lines are never edited; a later line supersedes an earlier one.
 
-## Where things stand (2026-10-27)
-- The product is called **PremiseOps**. The GitHub repo is public at https://github.com/e-skora/premise-ops (the old `e-skora/premise` address redirects there). Live site: https://premise-ops.com on Fly release v9, deployed by hand from 3e67b1d (PR #7). See the ship log in `docs/DEPLOYMENT.md`.
+## Where things stand (2026-10-29)
+- The product is called **PremiseOps**. The GitHub repo is public at https://github.com/e-skora/premise-ops (the old `e-skora/premise` address redirects there). Live site: https://premise-ops.com on Fly release v10, deployed by hand from da30dc1 (PR #10, wording: "all decisions"). See the ship log in `docs/DEPLOYMENT.md`.
 - `main` at the commit that updated this file, after PR #7 (rename and sample path cleanup) and the follow-up docs PR.
 - Done: Step 1 make it safe (PR #1), Step 2 cut it down (PR #1), Step 3 make it honest (PR #2), Step 4 README and license (PR #3), CI for other repos (PR #4), Compile Decision code location fix (PR #5), Step 5 rename and go public (PR #7).
 - Sample and seed text names no made-up files. `src/__tests__/sample-paths.test.ts` fails if it ever does again.
