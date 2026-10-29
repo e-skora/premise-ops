@@ -178,7 +178,7 @@ describe("Horizon C: Historical Drift Backtesting & Scenario Replay Engine", () 
     expect(adviceLt.recommendedThresholdAdjustment).toContain("+");
   });
 
-  it("5. runBacktestSimulation evaluates portfolio and captures multi-hop cascade invalidation", () => {
+  it("5. runBacktestSimulation evaluates all decisions and captures multi-hop cascade invalidation", () => {
     resetDatabaseToSeed();
     const artifacts = getAllArtifactsWithRelations();
 

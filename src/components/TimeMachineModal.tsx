@@ -921,10 +921,10 @@ export function TimeMachineModal({
                 )}
             </div>
 
-            {/* Portfolio Summary Card */}
+            {/* Summary Card */}
             <div className="bg-zinc-900/30 border border-zinc-800/60 p-3 text-[10px] text-zinc-400">
               <div className="flex items-center justify-between font-bold text-zinc-200 mb-1">
-                <span>PORTFOLIO BACKTEST SUMMARY</span>
+                <span>BACKTEST SUMMARY: ALL DECISIONS</span>
                 <span className="text-purple-400">
                   {report?.summary.averageResilienceScore}/100 AVG
                 </span>

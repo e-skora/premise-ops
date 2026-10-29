@@ -59,7 +59,7 @@ describe("Horizon E: Architecture Balance Sheet, Inefficiency Drag Ledger & Auto
       expect(breakdown.targetLocus).toContain("semantic-cache.ts");
     });
 
-    test("calculateFinOpsLedger aggregates portfolio drag and distinguishes decaying vs broken drag", () => {
+    test("calculateFinOpsLedger aggregates total drag and distinguishes decaying vs broken drag", () => {
       const allArts = getAllArtifactsWithRelations();
       const allEvents = getAllInvalidationEvents();
 

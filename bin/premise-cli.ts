@@ -203,7 +203,7 @@ ${ANSI.bold}USAGE:${ANSI.reset}
 ${ANSI.bold}COMMANDS:${ANSI.reset}
   check                            Run probes, then evaluate all load-bearing premises (ADR-014's OpenRouter price is the one live demo source; other seeded premises use demo data)
   scan                             Scan workspace files, markdown ADRs, and package manifests for architectural assumptions
-  backtest, replay                 Run historical drift backtesting & scenario stress-testing across decision portfolio
+  backtest, replay                 Run historical drift backtesting & scenario stress-testing across all decisions
 
 ${ANSI.bold}SCENARIO PRESETS:${ANSI.reset}
   price-war                        Frontier LLM token price war (-60% step drops)
@@ -782,7 +782,7 @@ async function runBacktestCommand(args: string[]) {
   const exitCode = report.summary.invalidatedArtifacts > 0 ? 1 : 0;
   if (exitCode === 0) {
     console.log(
-      `\n${ANSI.bgEmerald}${ANSI.bold}${ANSI.white} ✔ BACKTEST PASSED: PORTFOLIO ARCHITECTURE RESILIENT UNDER SCENARIO (EXIT 0) ${ANSI.reset}\n`
+      `\n${ANSI.bgEmerald}${ANSI.bold}${ANSI.white} ✔ BACKTEST PASSED: ALL DECISIONS RESILIENT UNDER SCENARIO (EXIT 0) ${ANSI.reset}\n`
     );
   } else {
     console.log(

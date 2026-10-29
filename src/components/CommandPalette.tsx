@@ -181,7 +181,7 @@ export function CommandPalette({
     items.push({
       id: "cmd-topology-view",
       title: "Switch to Visual Topology Graph",
-      subtitle: "Full-portfolio interactive DAG map with live cascade links",
+      subtitle: "Interactive DAG map of every decision with live cascade links",
       category: "commands",
       badge: "TOPOLOGY",
       badgeStyle: "bg-emerald-950 text-emerald-300 border-emerald-500/40",
@@ -271,7 +271,7 @@ export function CommandPalette({
     items.push({
       id: "cmd-finops",
       title: "Executive Architecture Balance Sheet (Horizon E)",
-      subtitle: "Inspect portfolio monthly drag burn rate & eliminated cloud waste",
+      subtitle: "Inspect total monthly drag burn rate & eliminated cloud waste",
       category: "commands",
       badge: "FINOPS",
       badgeStyle: "bg-amber-950 text-amber-300 border-amber-500/40",

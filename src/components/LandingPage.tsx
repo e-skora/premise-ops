@@ -141,7 +141,7 @@ Probes: suggested, not connected`,
       color: "blue",
       headline: "Stress-test architecture against historical black swans.",
       description:
-        "Replay simulated price wars, vendor outages and latency spikes, or the history PremiseOps has stored, across your portfolio. PremiseOps computes resilience scores (0-100) and suggests safer threshold buffers. Scenarios are simulations, not forecasts.",
+        "Replay simulated price wars, vendor outages and latency spikes, or the history PremiseOps has stored, across all your decisions. PremiseOps computes resilience scores (0-100) and suggests safer threshold buffers. Scenarios are simulations, not forecasts.",
       metric: "0-100 score",
       metricLabel: "From simulated scenarios",
       codeSnippet: `Scenario Replay: "LLM Price War (-60% step cut)"
@@ -717,7 +717,7 @@ Optimal Threshold Adjustment: +14% safety buffer`,
               ┌────────────────────────────────────────────────────────────────────────┐
             </div>
             <div className="text-zinc-300">
-              │ PREMISEOPS CI/CD ENGINE v3.0 // EVALUATING PORTFOLIO ASSERTIONS       │
+              │ PREMISEOPS CI/CD ENGINE v3.0 // EVALUATING DECISION ASSERTIONS        │
             </div>
             <div className="text-zinc-400">
               ├────────────────────────────────────────────────────────────────────────┤
